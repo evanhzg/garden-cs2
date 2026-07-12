@@ -1,6 +1,20 @@
-﻿# Rider IDE
-/.idea
-/RetakesPlugin/.idea
-/RetakesPluginShared/.idea
+# Rider / VS IDE
+.idea/
 *.DotSettings.user
-*.sln
+
+# Visual Studio solution user files
+*.suo
+*.user
+
+# .NET build output
+[Bb]in/
+[Oo]bj/
+
+# NuGet
+*.nupkg
+.nuget/
+packages/
+
+# OS
+.DS_Store
+Thumbs.db
