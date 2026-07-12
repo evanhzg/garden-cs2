@@ -18,6 +18,8 @@ public class Db : DbContext
     public DbSet<GardenBan> GardenBans { get; set; }
     public DbSet<GardenNameOverride> GardenNameOverrides { get; set; }
     public DbSet<WebLiveMatch> WebLiveMatches { get; set; }
+    public DbSet<NemesisRecord> NemesisRecords { get; set; }
+    public DbSet<GardenHeatmap> GardenHeatmaps { get; set; }
 
     private static Db? Instance { get; set; }
 
@@ -53,6 +55,8 @@ public class Db : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<NemesisRecord>().HasKey(x => new { x.KillerSteamId, x.VictimSteamId });
+
         modelBuilder.Entity<PlayerSeasonStats>()
             .HasIndex(s => new {s.SeasonId, s.SteamId})
             .IsUnique();

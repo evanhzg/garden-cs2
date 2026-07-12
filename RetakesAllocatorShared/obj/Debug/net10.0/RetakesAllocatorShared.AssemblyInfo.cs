@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("RetakesAllocatorShared")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8edc067297c981ba7e3411ac9c483e7a10d9f2ec")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5c6aa87c8705fe9ac0e4a8acc53419ded058dcc5")]
 [assembly: System.Reflection.AssemblyProductAttribute("RetakesAllocatorShared")]
 [assembly: System.Reflection.AssemblyTitleAttribute("RetakesAllocatorShared")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

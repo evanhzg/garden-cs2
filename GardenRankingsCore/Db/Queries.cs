@@ -625,6 +625,27 @@ public class Queries
             .ToList();
     }
 
+    public static async Task IncrementNemesisRecordAsync(ulong killerSteamId, ulong victimSteamId)
+    {
+        try
+        {
+            await using var db = new Db();
+            var record = await db.NemesisRecords.FirstOrDefaultAsync(x => x.KillerSteamId == killerSteamId && x.VictimSteamId == victimSteamId);
+            if (record is null)
+            {
+                record = new NemesisRecord { KillerSteamId = killerSteamId, VictimSteamId = victimSteamId, Kills = 0 };
+                db.NemesisRecords.Add(record);
+            }
+
+            record.Kills++;
+            await db.SaveChangesAsync();
+        }
+        catch (Exception e)
+        {
+            Log.Error($"Failed to increment nemesis record: {e.Message}");
+        }
+    }
+
     #endregion
 
     #region Stats summaries

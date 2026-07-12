@@ -317,3 +317,35 @@ public class GardenAdminLogEntry
     [MaxLength(128)] public string TargetName { get; set; } = "";
     [MaxLength(256)] public string Detail { get; set; } = "";
 }
+
+public class NemesisRecord
+{
+    public ulong KillerSteamId { get; set; }
+    public ulong VictimSteamId { get; set; }
+    public int Kills { get; set; }
+}
+
+/// <summary>
+/// Garden (W2): Heatmap coordinate data for kills and deaths.
+/// </summary>
+public class GardenHeatmap
+{
+    [Key] public long Id { get; set; }
+    
+    [Column(TypeName = "bigint")] public ulong VictimSteamId { get; set; }
+    [Column(TypeName = "bigint")] public ulong AttackerSteamId { get; set; }
+    [MaxLength(128)] public string MapName { get; set; } = "";
+    
+    public float VictimX { get; set; }
+    public float VictimY { get; set; }
+    public float VictimZ { get; set; }
+    
+    public float AttackerX { get; set; }
+    public float AttackerY { get; set; }
+    public float AttackerZ { get; set; }
+    
+    [MaxLength(64)] public string Weapon { get; set; } = "";
+    public bool IsHeadshot { get; set; }
+    public bool IsRanked { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+}

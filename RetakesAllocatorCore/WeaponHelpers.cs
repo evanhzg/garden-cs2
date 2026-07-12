@@ -24,6 +24,9 @@ public enum WeaponAllocationType
     // Pseudo allocation type: persists the per-player Zeus preference inside the
     // existing WeaponPreferences storage. Must stay last so serialized values keep their meaning.
     Zeus,
+
+    // Pseudo allocation type for the Drop Bomb preference in Executes/FastStrat.
+    DropBomb,
 }
 
 public enum ItemSlotType

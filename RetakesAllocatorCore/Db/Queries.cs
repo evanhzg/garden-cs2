@@ -91,6 +91,16 @@ public class Queries
         Task.Run(async () => { await SetZeusPreferenceAsync(userId, enabled); });
     }
 
+    public static async Task SetDropBombPreferenceAsync(ulong userId, bool enabled)
+    {
+        await UpsertUserSettings(userId, userSetting => { userSetting.SetDropBombPreference(enabled); });
+    }
+
+    public static void SetDropBombPreference(ulong userId, bool enabled)
+    {
+        Task.Run(async () => { await SetDropBombPreferenceAsync(userId, enabled); });
+    }
+
     public static IDictionary<ulong, UserSetting> GetUsersSettings(ICollection<ulong> userIds)
     {
         var userSettingsList = Db.GetInstance()

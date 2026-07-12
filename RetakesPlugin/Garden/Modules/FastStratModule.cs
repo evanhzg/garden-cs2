@@ -222,7 +222,8 @@ public class FastStratModule : IGardenModule
 
         _executes.PlaceGroup(ts, _currentT.TStarts, cfg.TWeapons, cfg.GiveKevlarHelmet);
         _executes.PlaceGroup(cts, _currentCt.CtSetups, cfg.CtWeapons, cfg.GiveKevlarHelmet);
-        ts.FirstOrDefault()?.GiveNamedItem("weapon_c4");
+        var bombCarrier = ExecutesModule.PickBombCarrier(ts);
+        bombCarrier?.GiveNamedItem("weapon_c4");
 
         Server.PrintToChatAll($"{Prefix} {_plugin.Localizer["garden.fs.playing",
             _currentT.Name, _currentCt.Name]}");

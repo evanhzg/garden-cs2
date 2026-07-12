@@ -80,6 +80,19 @@ public class UserSetting
         return GetWeaponPreference(CsTeam.Terrorist, WeaponAllocationType.Zeus) is not null ||
                GetWeaponPreference(CsTeam.CounterTerrorist, WeaponAllocationType.Zeus) is not null;
     }
+
+    public void SetDropBombPreference(bool enabled)
+    {
+        CsItem? value = enabled ? CsItem.C4 : null;
+        SetWeaponPreference(CsTeam.Terrorist, WeaponAllocationType.DropBomb, value);
+        SetWeaponPreference(CsTeam.CounterTerrorist, WeaponAllocationType.DropBomb, value);
+    }
+
+    public bool GetDropBombPreference()
+    {
+        return GetWeaponPreference(CsTeam.Terrorist, WeaponAllocationType.DropBomb) is not null ||
+               GetWeaponPreference(CsTeam.CounterTerrorist, WeaponAllocationType.DropBomb) is not null;
+    }
 }
 
 public class CsItemConverter : ValueConverter<CsItem?, string>

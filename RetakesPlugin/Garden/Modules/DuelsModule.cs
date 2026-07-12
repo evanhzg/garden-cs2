@@ -435,6 +435,9 @@ public class DuelsModule : IGardenModule
             return HookResult.Continue;
         }
 
+        // FIX: Force respawn for the lane even if the next fighters are the same.
+        _lastPairs.Remove(result.Lane.Id);
+
         // R10: per-arena win stats.
         var duelArenaName = "";
         if (_laneArena.TryGetValue(result.Lane.Id, out var arenaIndex) && arenaIndex < _arenas.Count)

@@ -144,6 +144,34 @@ public static class SchemaUpgrades
             )
             """);
 
+        db.Database.ExecuteSqlRaw($"""
+            CREATE TABLE IF NOT EXISTS NemesisRecords (
+                KillerSteamId {steamIdType} NOT NULL,
+                VictimSteamId {steamIdType} NOT NULL,
+                Kills INT NOT NULL,
+                PRIMARY KEY (KillerSteamId, VictimSteamId)
+            )
+            """);
+
+        db.Database.ExecuteSqlRaw($"""
+            CREATE TABLE IF NOT EXISTS GardenHeatmaps (
+                Id {autoIncrementBigPk},
+                VictimSteamId {steamIdType} NOT NULL,
+                AttackerSteamId {steamIdType} NOT NULL,
+                MapName VARCHAR(128) NOT NULL,
+                VictimX FLOAT NOT NULL,
+                VictimY FLOAT NOT NULL,
+                VictimZ FLOAT NOT NULL,
+                AttackerX FLOAT NOT NULL,
+                AttackerY FLOAT NOT NULL,
+                AttackerZ FLOAT NOT NULL,
+                Weapon VARCHAR(64) NOT NULL,
+                IsHeadshot TINYINT(1) NOT NULL,
+                IsRanked TINYINT(1) NOT NULL,
+                CreatedAtUtc {dateTime} NOT NULL
+            )
+            """);
+
         try
         {
             db.Database.ExecuteSqlRaw(

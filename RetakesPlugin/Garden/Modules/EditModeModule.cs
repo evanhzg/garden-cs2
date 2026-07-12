@@ -42,6 +42,7 @@ public class EditModeModule : IGardenModule
         None,
         NewArena,
         NewStrategy,
+        NewScenario,
     }
 
     private sealed class EditorState
@@ -60,6 +61,7 @@ public class EditModeModule : IGardenModule
         public int StrategyIndex = -1;
         public int NadeIndex;
 
+        public string ActiveScenario = "";
         public bool Noclip;
 
         // Render throttle: only re-send the center-HTML menu when it changes or on
@@ -107,6 +109,8 @@ public class EditModeModule : IGardenModule
         _host.Modes.ModeChanged += OnModeChanged;
         _plugin.AddCommand("css_gedit", "Open/close the Garden editor menu (edit mode).", OnEditCommand);
         _plugin.AddCommand("css_name", "Answer a pending editor name prompt.", OnNameCommand);
+        _plugin.AddCommand("css_ghost", "Enter admin freecam (Spectator).", OnGhostCommand);
+        _plugin.AddCommand("css_freecam", "Enter admin freecam (Spectator).", OnGhostCommand);
     }
 
     public void OnMapStart(string mapName)
@@ -271,7 +275,33 @@ public class EditModeModule : IGardenModule
                 RenderMarkers(state.Category);
                 return;
             }
+            case Prompt.NewScenario:
+            {
+                state.Prompt = Prompt.None;
+                var safeName = raw.Replace(" ", "_");
+                state.ActiveScenario = $"scenario:{safeName}";
+                info.ReplyToCommand($"{Prefix} Active scenario set to: {safeName}");
+                return;
+            }
         }
+    }
+
+    private void OnGhostCommand(CCSPlayerController? player, CommandInfo info)
+    {
+        if (!PlayerHelper.IsValid(player) || !PlayerHelper.HasAdminPermission(player, "@css/generic")) return;
+
+        player.ChangeTeam(CsTeam.Spectator);
+        player.PrintToChat($"{Prefix} You are now in Ghost mode (Spectator freecam). You can still place spawns using the editor!");
+    }
+
+    private CBaseEntity? GetValidPawn(CCSPlayerController player)
+    {
+        var pawn = player.Pawn.Value;
+        if (pawn != null && pawn.IsValid && pawn.AbsOrigin != null && pawn.AbsRotation != null)
+        {
+            return pawn;
+        }
+        return null;
     }
 
     // ---------- tick: input + render ----------
@@ -365,14 +395,41 @@ public class EditModeModule : IGardenModule
         switch (state.Category)
         {
             case Category.Retakes:
+            {
                 options.Add(new($"Team: {(state.Team == CsTeam.Terrorist ? "T" : "CT")}",
                     (p, s) => s.Team = s.Team == CsTeam.Terrorist ? CsTeam.CounterTerrorist : CsTeam.Terrorist));
                 options.Add(new($"Site: {state.Site}",
                     (p, s) => s.Site = s.Site == Bombsite.A ? Bombsite.B : Bombsite.A));
+
+                var allScenarios = _plugin.MapConfigService?.GetSpawnsClone()
+                    .SelectMany(sp => sp.Flags)
+                    .Where(f => f.StartsWith("scenario:", StringComparison.OrdinalIgnoreCase))
+                    .Distinct()
+                    .ToList() ?? [];
+                
+                options.Add(new($"Scenario: {(string.IsNullOrEmpty(state.ActiveScenario) ? "None" : state.ActiveScenario.Replace("scenario:", ""))}", (p, s) =>
+                {
+                    if (allScenarios.Count == 0) return;
+                    var idx = string.IsNullOrEmpty(s.ActiveScenario) ? -1 : allScenarios.IndexOf(s.ActiveScenario);
+                    idx = (idx + 1) % (allScenarios.Count + 1);
+                    s.ActiveScenario = idx == allScenarios.Count ? "" : allScenarios[idx];
+                }));
+                options.Add(new("🆕 New scenario (then: !name <name>)", (p, s) =>
+                {
+                    s.Prompt = Prompt.NewScenario;
+                    p.PrintToChat($"{Prefix} Type !name <scenario_name> in chat to create a new scenario.");
+                }));
+                
+                if (!string.IsNullOrEmpty(state.ActiveScenario))
+                {
+                    options.Add(new($"🏷️ Toggle '{state.ActiveScenario.Replace("scenario:", "")}' on nearest", ToggleScenarioNearest));
+                }
+
                 options.Add(new("➕ Add spawn here", AddRetakesSpawn));
                 options.Add(new("🏴 Toggle planter on nearest", TogglePlanterNearest));
                 options.Add(new("🗑 Delete nearest spawn", DeleteNearestSpawn));
                 break;
+            }
 
             case Category.Duels:
             {
@@ -502,19 +559,19 @@ public class EditModeModule : IGardenModule
 
     private void AddRetakesSpawn(CCSPlayerController player, EditorState state)
     {
-        if (!PlayerHelper.HasAlivePawn(player) || _plugin.MapConfigService is null)
+        var pawn = GetValidPawn(player);
+        if (pawn == null || _plugin.MapConfigService is null)
         {
             return;
         }
 
-        var pawn = player.PlayerPawn.Value!;
         var spawn = new Spawn(
             new Vector(pawn.AbsOrigin!.X, pawn.AbsOrigin.Y, pawn.AbsOrigin.Z),
             new QAngle(pawn.AbsRotation!.X, pawn.AbsRotation.Y, pawn.AbsRotation.Z))
         {
             Team = state.Team,
             Bombsite = state.Site,
-            CanBePlanter = state.Team == CsTeam.Terrorist && pawn.InBombZoneTrigger,
+            CanBePlanter = state.Team == CsTeam.Terrorist && (pawn as CCSPlayerPawn)?.InBombZoneTrigger == true,
             AddedBy = player.PlayerName,
         };
 
@@ -543,6 +600,26 @@ public class EditModeModule : IGardenModule
         RenderMarkers(state.Category);
     }
 
+    private void ToggleScenarioNearest(CCSPlayerController player, EditorState state)
+    {
+        var nearest = FindNearestSpawn(player);
+        if (nearest is null || _plugin.MapConfigService is null || string.IsNullOrEmpty(state.ActiveScenario))
+        {
+            return;
+        }
+
+        var hasScenario = nearest.Flags.Contains(state.ActiveScenario, StringComparer.OrdinalIgnoreCase);
+        _plugin.MapConfigService.MutateSpawns(_ => 
+        {
+            if (hasScenario) nearest.Flags.RemoveAll(f => f.Equals(state.ActiveScenario, StringComparison.OrdinalIgnoreCase));
+            else nearest.Flags.Add(state.ActiveScenario);
+        });
+        _plugin.SpawnManager?.CalculateMapSpawns();
+
+        player.PrintToChat($"{Prefix} {(hasScenario ? "Removed" : "Added")} '{state.ActiveScenario.Replace("scenario:", "")}' {(hasScenario ? "from" : "to")} nearest spawn.");
+        RenderMarkers(state.Category);
+    }
+
     private void DeleteNearestSpawn(CCSPlayerController player, EditorState state)
     {
         var nearest = FindNearestSpawn(player);
@@ -562,11 +639,12 @@ public class EditModeModule : IGardenModule
 
     private Spawn? FindNearestSpawn(CCSPlayerController player)
     {
-        var origin = player.PlayerPawn.Value?.AbsOrigin;
-        if (origin is null || _plugin.MapConfigService is null)
+        var pawn = GetValidPawn(player);
+        if (pawn is null || _plugin.MapConfigService is null)
         {
             return null;
         }
+        var origin = pawn.AbsOrigin!;
 
         Spawn? nearest = null;
         var best = 300.0;
@@ -586,14 +664,13 @@ public class EditModeModule : IGardenModule
     private void SetArenaEnd(CCSPlayerController player, EditorState state, bool isA)
     {
         var arenas = _duels.ArenaStore.Arenas;
-        if (state.ArenaIndex < 0 || state.ArenaIndex >= arenas.Count ||
-            !PlayerHelper.HasAlivePawn(player))
+        var pawn = GetValidPawn(player);
+        if (state.ArenaIndex < 0 || state.ArenaIndex >= arenas.Count || pawn == null)
         {
             player.PrintToChat($"{Prefix} {_plugin.Localizer["garden.edit.no_selection"]}");
             return;
         }
 
-        var pawn = player.PlayerPawn.Value!;
         var position = new ExecutePosition
         {
             X = pawn.AbsOrigin!.X, Y = pawn.AbsOrigin.Y, Z = pawn.AbsOrigin.Z,

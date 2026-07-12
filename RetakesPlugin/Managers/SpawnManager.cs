@@ -18,12 +18,14 @@ public class SpawnManager
     /// </summary>
     public static Func<List<Spawn>, CsTeam, List<Spawn>>? GardenSpawnFilter { get; set; }
 
+    private readonly RetakesPlugin _plugin;
     private readonly MapConfigService _mapConfigService;
     private readonly Dictionary<Bombsite, Dictionary<CsTeam, List<Spawn>>> _spawns = new();
     private readonly Random _random = new();
 
-    public SpawnManager(MapConfigService mapConfigService)
+    public SpawnManager(RetakesPlugin plugin, MapConfigService mapConfigService)
     {
+        _plugin = plugin;
         _mapConfigService = mapConfigService;
         CalculateMapSpawns();
     }
@@ -92,6 +94,42 @@ public class SpawnManager
                 spawns[CsTeam.CounterTerrorist] = filteredCt;
                 Logger.LogDebug("SpawnManager",
                     $"Garden spawn filter active: T {filteredT.Count}, CT {filteredCt.Count}");
+            }
+        }
+
+        // Garden (R13): Scenario groups
+        if (_plugin.ScenariosEnabled.Value)
+        {
+            var scenarios = spawns[CsTeam.Terrorist]
+                .SelectMany(s => s.Flags)
+                .Where(f => f.StartsWith("scenario:", StringComparison.OrdinalIgnoreCase))
+                .Distinct()
+                .ToList();
+
+            // Intersect with CT scenarios to ensure the scenario is valid for both teams
+            var ctScenarios = spawns[CsTeam.CounterTerrorist]
+                .SelectMany(s => s.Flags)
+                .Where(f => f.StartsWith("scenario:", StringComparison.OrdinalIgnoreCase))
+                .Distinct();
+            
+            var validScenarios = scenarios.Intersect(ctScenarios).ToList();
+
+            if (validScenarios.Count > 0)
+            {
+                var chosenScenario = validScenarios[_random.Next(validScenarios.Count)];
+                var scenarioT = spawns[CsTeam.Terrorist].Where(s => s.Flags.Contains(chosenScenario, StringComparer.OrdinalIgnoreCase)).ToList();
+                var scenarioCt = spawns[CsTeam.CounterTerrorist].Where(s => s.Flags.Contains(chosenScenario, StringComparer.OrdinalIgnoreCase)).ToList();
+
+                if (scenarioT.Count >= tCount && scenarioCt.Count >= ctCount && scenarioT.Any(s => s.CanBePlanter))
+                {
+                    spawns[CsTeam.Terrorist] = scenarioT;
+                    spawns[CsTeam.CounterTerrorist] = scenarioCt;
+                    Logger.LogInfo("SpawnManager", $"Scenario {chosenScenario} selected for bombsite {bombsite}");
+                }
+                else
+                {
+                    Logger.LogWarning("SpawnManager", $"Scenario {chosenScenario} does not have enough valid spawns for {tCount} T / {ctCount} CT. Falling back.");
+                }
             }
         }
 

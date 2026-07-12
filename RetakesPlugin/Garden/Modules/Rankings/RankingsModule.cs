@@ -58,6 +58,7 @@ public partial class RankingsModule : IGardenModule
 
     private readonly HashSet<ulong> _optOutDamageReport = new();
     private readonly Dictionary<ulong, Dictionary<ulong, DamageEntry>> _damageGivenThisRound = new();
+    private readonly Dictionary<(ulong Killer, ulong Victim), int> _sessionKills = new();
 
     // Test mode (css_rr_force): ranked stays active regardless of player count.
     private bool _testBypassMinPlayers;
@@ -108,6 +109,7 @@ public partial class RankingsModule : IGardenModule
         // Persistent repeating timers (survive map changes).
         _plugin.AddTimer(1.0f, OnSecondTimer, TimerFlags.REPEAT);
         _plugin.AddTimer(0.5f, OnAfkSampleTimer, TimerFlags.REPEAT);
+        _plugin.AddTimer(3.0f, () => LiveMatchBroadcaster.BroadcastAsync(_host.Modes.CurrentMode, _cr, _ranked, _sessionKills, _eloCache), TimerFlags.REPEAT);
 
         // Round lifecycle + stat collection events (donor used [GameEventHandler]).
         _plugin.RegisterEventHandler<EventRoundStart>(OnRoundStart);
@@ -144,6 +146,10 @@ public partial class RankingsModule : IGardenModule
         // Competitive Retakes.
         _plugin.AddCommand("css_cr", "Start (or stop) a Competitive Retakes match.", OnCrCommand);
         _plugin.AddCommand("css_crtop", "Shows the season's top Competitive Retakes teams.", OnCrTopCommand);
+        _plugin.AddCommand("css_pause", "Pause the current match.", OnPauseCommand);
+        _plugin.AddCommand("css_p", "Pause the current match.", OnPauseCommand);
+        _plugin.AddCommand("css_unpause", "Unpause the current match.", OnUnpauseCommand);
+        _plugin.AddCommand("css_up", "Unpause the current match.", OnUnpauseCommand);
 
         // Test commands (admin).
         _plugin.AddCommand("css_rr_force", "TEST: force-activate Ranked Retakes.", OnRankedForceCommand);
@@ -378,6 +384,8 @@ public partial class RankingsModule : IGardenModule
         RatingEngine.ComputeRatings(players, ctx);
         EloEngine.ApplyEloDeltas(players, ctx);
 
+        HandleDynamicMvpAnnouncement(players);
+
         HandleAfkSpectateMoves(players);
 
         if (ctx.IsRanked && Configs.GetConfigData().Announcements.EloChangeToPlayer)
@@ -407,6 +415,40 @@ public partial class RankingsModule : IGardenModule
 
             player.ChangeTeam(CsTeam.Spectator);
             Helpers.PrintToAll(Translator.Instance["afk.moved_to_spectators", player.PlayerName]);
+        }
+    }
+
+    private void HandleDynamicMvpAnnouncement(List<PlayerRoundStats> players)
+    {
+        var activePlayers = CounterStrikeSharp.API.Utilities.GetPlayers().Where(p => Helpers.IsHumanPlayer(p)).ToList();
+
+        var clutchers = players.Where(p => p.ClutchWon && p.ClutchVersus > 1).OrderByDescending(p => p.ClutchVersus).ToList();
+        if (clutchers.Count > 0)
+        {
+            var mvp = clutchers.First();
+            foreach (var p in activePlayers) p.PrintToCenterHtml($"<font color='gold'>{mvp.PlayerName}</font> CLUTCHED 1v{mvp.ClutchVersus}!");
+            return;
+        }
+
+        var acers = players.Where(p => p.Kills >= 5).ToList();
+        if (acers.Count > 0)
+        {
+            foreach (var p in activePlayers) p.PrintToCenterHtml($"<font color='red'>{acers.First().PlayerName}</font> GOT AN ACE!");
+            return;
+        }
+
+        var fourKs = players.Where(p => p.Kills == 4).ToList();
+        if (fourKs.Count > 0)
+        {
+            foreach (var p in activePlayers) p.PrintToCenterHtml($"<font color='red'>{fourKs.First().PlayerName}</font> GOT A 4K!");
+            return;
+        }
+
+        var threeKs = players.Where(p => p.Kills == 3).ToList();
+        if (threeKs.Count > 0)
+        {
+            foreach (var p in activePlayers) p.PrintToCenterHtml($"<font color='red'>{threeKs.First().PlayerName}</font> GOT A 3K!");
+            return;
         }
     }
 
@@ -532,13 +574,31 @@ public partial class RankingsModule : IGardenModule
             return HookResult.Continue;
         }
 
-        _collector.OnPlayerDeath(
-            Helpers.GetSteamId(@event.Userid),
-            Helpers.GetSteamId(@event.Attacker),
-            Helpers.GetSteamId(@event.Assister),
-            @event.Headshot,
-            @event.Assistedflash
-        );
+        var victimId = Helpers.GetSteamId(@event.Userid);
+        var attackerId = Helpers.GetSteamId(@event.Attacker);
+        var assisterId = Helpers.GetSteamId(@event.Assister);
+
+        _collector.OnPlayerDeath(victimId, attackerId, assisterId, @event.Headshot, @event.Assistedflash);
+        
+        var isRankedOrCr = _ranked.IsActive || _cr.IsLive;
+        HeatmapCollector.RecordDeath(@event, isRankedOrCr);
+
+        if (attackerId != 0 && victimId != 0 && attackerId != victimId)
+        {
+            var key = (attackerId, victimId);
+            _sessionKills.TryGetValue(key, out var kills);
+            _sessionKills[key] = kills + 1;
+
+            var reverseKey = (victimId, attackerId);
+            _sessionKills.TryGetValue(reverseKey, out var reverseKills);
+
+            if (_sessionKills[key] >= 3 && reverseKills == 0)
+            {
+                Server.PrintToChatAll($"{_plugin.Localizer["garden.prefix"]} \x07[Nemesis]\x01 {@event.Attacker?.PlayerName ?? "Unknown"} is dominating {@event.Userid?.PlayerName ?? "Unknown"} ({_sessionKills[key]}-{reverseKills})!");
+            }
+
+            Task.Run(async () => await Queries.IncrementNemesisRecordAsync(attackerId, victimId));
+        }
 
         return HookResult.Continue;
     }

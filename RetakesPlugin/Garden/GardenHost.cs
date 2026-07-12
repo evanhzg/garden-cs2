@@ -2,6 +2,7 @@ using GardenRankings;
 using GardenRetakes.Core.GameModes;
 using RetakesAllocator;
 using RetakesPlugin.Garden.Modules;
+using RetakesPlugin.Garden.Modules.Rankings;
 
 namespace RetakesPlugin.Garden;
 
@@ -35,6 +36,7 @@ public class GardenHost
         _modules.Add(admin);
         _modules.Add(new AllocatorModule(plugin, this));
         _modules.Add(new RankingsModule(plugin, this));
+        _modules.Add(new ChatTagModule(plugin));
         _modules.Add(new InstantDefuseModule(plugin, this));
         _modules.Add(new GameModeModule(plugin, this, admin));
         _modules.Add(new GConfigModule(plugin, this, admin));

@@ -104,6 +104,7 @@ public class ExecutesModule : IGardenModule
         _plugin.RegisterListener<Listeners.OnEntitySpawned>(OnEntitySpawned);
 
         _plugin.AddCommand("css_gexec", "Executes strategies: new/edit/tstart/ctsetup/nade/list/info/del/play/random.", OnGExecCommand);
+        _plugin.AddCommand("css_nobomb", "Opt-out of carrying the C4 in Executes and FastStrat.", OnNoBombCommand);
     }
 
 
@@ -231,8 +232,8 @@ public class ExecutesModule : IGardenModule
         PlaceGroup(ts, _current.TStarts, cfg.TWeapons, cfg.GiveKevlarHelmet);
         PlaceGroup(cts, _current.CtSetups, cfg.CtWeapons, cfg.GiveKevlarHelmet);
 
-        // The execute needs a bomb.
-        var bombCarrier = ts.FirstOrDefault();
+        // The execute needs a bomb. Give it to a player who has not opted out if possible.
+        var bombCarrier = PickBombCarrier(ts);
         bombCarrier?.GiveNamedItem("weapon_c4");
 
         Server.PrintToChatAll($"{Prefix} {_plugin.Localizer["garden.exec.playing",
@@ -651,6 +652,61 @@ public class ExecutesModule : IGardenModule
                 info.ReplyToCommand($"{Prefix} {_plugin.Localizer["garden.exec.usage"]}");
                 return;
         }
+    }
+
+    private void OnNoBombCommand(CCSPlayerController? player, CommandInfo info)
+    {
+        if (!PlayerHelper.IsValid(player))
+        {
+            return;
+        }
+
+        var steamId = player!.SteamID;
+        var settingsDict = RetakesAllocatorCore.Db.Queries.GetUsersSettings(new[] { steamId });
+        settingsDict.TryGetValue(steamId, out var settings);
+        var currentlyOptedOut = settings?.GetDropBombPreference() ?? false;
+        var newValue = !currentlyOptedOut;
+
+        RetakesAllocatorCore.Db.Queries.SetDropBombPreference(steamId, newValue);
+        
+        // Ensure local memory is immediately updated for the next round
+        if (settings != null)
+        {
+            settings.SetDropBombPreference(newValue);
+        }
+
+        if (newValue)
+        {
+            info.ReplyToCommand($"{Prefix} You have \x04opted out\x01 of carrying the C4.");
+        }
+        else
+        {
+            info.ReplyToCommand($"{Prefix} You are \x02no longer opted out\x01 of carrying the C4.");
+        }
+    }
+
+    internal static CCSPlayerController? PickBombCarrier(List<CCSPlayerController> terrorists)
+    {
+        if (terrorists.Count == 0)
+        {
+            return null;
+        }
+
+        if (terrorists.Count == 1)
+        {
+            return terrorists[0];
+        }
+
+        var steamIds = terrorists.Select(p => p.SteamID).ToList();
+        var allSettings = RetakesAllocatorCore.Db.Queries.GetUsersSettings(steamIds);
+
+        var willingCarriers = terrorists.Where(p => 
+        {
+            allSettings.TryGetValue(p.SteamID, out var settings);
+            return settings == null || !settings.GetDropBombPreference();
+        }).ToList();
+
+        return willingCarriers.Count > 0 ? willingCarriers[0] : terrorists[0];
     }
 
     private bool TryGetEdited(CCSPlayerController player, CommandInfo info, out ExecuteStrategy? strategy)

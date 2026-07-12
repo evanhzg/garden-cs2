@@ -3,6 +3,7 @@ using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
 using CounterStrikeSharp.API.Core.Capabilities;
 using CounterStrikeSharp.API.Modules.Commands;
+using CounterStrikeSharp.API.Modules.Cvars;
 using RetakesPluginShared;
 using System.Text.Json;
 
@@ -114,6 +115,10 @@ public class RetakesPlugin : BasePlugin, IPluginConfig<BaseConfigs>
     public RetakesPluginEventSender EventSender { get; } = new();
     #endregion
 
+    #region ConVars
+    public FakeConVar<bool> ScenariosEnabled { get; } = new("garden_retakes_scenarios", "If true, retakes will randomly group spawns by scenario (if defined).", false);
+    #endregion
+
     #region State
     private readonly HashSet<CCSPlayerController> _hasMutedVoices = [];
     #endregion
@@ -190,7 +195,7 @@ public class RetakesPlugin : BasePlugin, IPluginConfig<BaseConfigs>
             _mapConfigService.Load();
 
             // Initialize Managers
-            _spawnManager = new SpawnManager(_mapConfigService);
+            _spawnManager = new SpawnManager(this, _mapConfigService);
             _allocationService = new AllocationService(_random);
 
             _gameManager = new GameManager(

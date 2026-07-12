@@ -29,6 +29,7 @@ public partial class RankingsModule
     private ulong _crStopInitiator;
     private DateTime _crStopDeadlineUtc;
     private DateTime _crMatchStartedUtc;
+    private CsTeam? _crPausingTeam;
 
     // Pending clutch round layout, applied at next round poststart (Pre).
     private Dictionary<ulong, CsTeam>? _pendingClutchTeams;
@@ -64,6 +65,7 @@ public partial class RankingsModule
         _pendingClutchTeams = null;
         _pendingClutchAnnouncement = null;
         _crSetupActive = false;
+        ClearPauseState();
         _plugin.SuspendTeamManagement = false;
 
         // A live CR match cannot survive a map change.
@@ -291,6 +293,11 @@ public partial class RankingsModule
         _plugin.SuspendTeamManagement = true;
         Server.ExecuteCommand("mp_warmup_pausetimer 1");
         Server.ExecuteCommand("mp_warmuptime 999999");
+        Server.ExecuteCommand("mp_randomspawn 1");
+        Server.ExecuteCommand("mp_randomspawn_los 1");
+        Server.ExecuteCommand("mp_respawn_on_death_t 1");
+        Server.ExecuteCommand("mp_respawn_on_death_ct 1");
+        Server.ExecuteCommand("mp_death_drop_gun 0");
         Server.ExecuteCommand("mp_warmup_start");
 
         var allowedSizes = Configs.GetConfigData().Competitive.AllowedTeamSizes;
@@ -324,8 +331,14 @@ public partial class RankingsModule
     private void EndCrSetup(bool announceCancel)
     {
         _crSetupActive = false;
+        ClearPauseState();
         _plugin.SuspendTeamManagement = false;
         Server.ExecuteCommand("mp_warmup_pausetimer 0");
+        Server.ExecuteCommand("mp_randomspawn 0");
+        Server.ExecuteCommand("mp_randomspawn_los 0");
+        Server.ExecuteCommand("mp_respawn_on_death_t 0");
+        Server.ExecuteCommand("mp_respawn_on_death_ct 0");
+        Server.ExecuteCommand("mp_death_drop_gun 1");
         Server.ExecuteCommand("mp_warmup_end");
         if (announceCancel)
         {
@@ -369,7 +382,7 @@ public partial class RankingsModule
 
         ApplyModeCvars();
         PushNextCrRoundPlan();
-        LiveMatchBroadcaster.TriggerUpdate(_cr);
+
 
         Helpers.PrintToAll(Translator.Instance["cr.match_started",
             _cr.TeamAName, _cr.TeamBName, Configs.GetConfigData().Competitive.RoundsPerHalf]);
@@ -405,7 +418,6 @@ public partial class RankingsModule
         {
             Helpers.PrintToAll(Translator.Instance["cr.score", _cr.ScoreLine(), _cr.CurrentHalf]);
         }
-        LiveMatchBroadcaster.TriggerUpdate(_cr);
 
         switch (matchEvent)
         {
@@ -513,9 +525,10 @@ public partial class RankingsModule
         }, result == "B" ? teamBName : teamAName, $"{scoreA}-{scoreB}"]);
 
         _cr.Cancel();
+        ClearPauseState();
         _plugin.SuspendTeamManagement = false;
         ApplyModeCvars();
-        LiveMatchBroadcaster.TriggerUpdate(_cr);
+
 
         Task.Run(() =>
         {
@@ -573,9 +586,10 @@ public partial class RankingsModule
 
         _cr.Cancel();
         _crStopInitiator = 0;
+        ClearPauseState();
         _plugin.SuspendTeamManagement = false;
         ApplyModeCvars();
-        LiveMatchBroadcaster.TriggerUpdate(_cr);
+
         Helpers.PrintToAll(Translator.Instance["cr.match_cancelled"]);
 
         Task.Run(() =>
@@ -639,6 +653,45 @@ public partial class RankingsModule
                 }
             });
         });
+    }
+
+    private void ClearPauseState()
+    {
+        if (_crPausingTeam != null)
+        {
+            _crPausingTeam = null;
+            Server.ExecuteCommand("mp_unpause_match");
+        }
+    }
+
+    private void OnPauseCommand(CCSPlayerController? player, CommandInfo info)
+    {
+        if (!Helpers.IsHumanPlayer(player) || !_cr.IsLive) return;
+
+        if (_crPausingTeam != null)
+        {
+            player.PrintToChat($" {Translator.Instance["garden.cr.already_paused"] ?? "Match is already paused!"}");
+            return;
+        }
+
+        _crPausingTeam = player.Team;
+        Server.ExecuteCommand("mp_pause_match");
+        Server.PrintToChatAll($" {Translator.Instance["garden.cr.match_paused", player.PlayerName, player.Team.ToString()] ?? $"Match paused by {player.PlayerName} ({player.Team}). Type !unpause or !up to resume."}");
+    }
+
+    private void OnUnpauseCommand(CCSPlayerController? player, CommandInfo info)
+    {
+        if (!Helpers.IsHumanPlayer(player) || !_cr.IsLive || _crPausingTeam == null) return;
+
+        if (player.Team != _crPausingTeam && !RetakesPlugin.Utils.PlayerHelper.HasAdminPermission(player, "@css/generic"))
+        {
+            player.PrintToChat($" {Translator.Instance["garden.cr.unpause_denied"] ?? "Only the pausing team (or an admin) can unpause the match."}");
+            return;
+        }
+
+        _crPausingTeam = null;
+        Server.ExecuteCommand("mp_unpause_match");
+        Server.PrintToChatAll($" {Translator.Instance["garden.cr.match_unpaused", player.PlayerName] ?? $"Match unpaused by {player.PlayerName}!"}");
     }
 
     #endregion
