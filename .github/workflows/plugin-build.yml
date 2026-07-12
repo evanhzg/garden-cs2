@@ -1,16 +1,17 @@
-name: Build RetakesPlugin
+name: Build & Release RetakesPlugin
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
     paths:
-      - '**.cs'
-      - '**.csproj'
+      - "**.cs"
+      - "**.csproj"
+      - ".github/workflows/plugin-build.yml"
   pull_request:
-    branches: [ "master" ]
+    branches: ["master"]
     paths:
-      - '**.cs'
-      - '**.csproj'
+      - "**.cs"
+      - "**.csproj"
   release:
     types:
       - created
@@ -22,65 +23,78 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
-      
-      - name: Build RetakesPluginShared
+          # Must match TargetFramework in RetakesPlugin.csproj (net10.0)
+          dotnet-version: "10.0.x"
+
+      - name: Restore & build entire solution
+        run: dotnet build GardenRetakes.sln --configuration Release
+
+      - name: Run tests
+        run: dotnet test GardenRetakes.sln --configuration Release --no-build
+
+      # ------------------------------------------------------------------ #
+      # Package: with map configs (recommended for new installs)
+      # ------------------------------------------------------------------ #
+      - name: Assemble release package (with map configs)
         run: |
-          cd RetakesPluginShared
-          dotnet build
-      
-      - name: Build RetakesPlugin
+          PLUGIN_DIR=output/addons/counterstrikesharp/plugins/RetakesPlugin
+          SHARED_DIR=output/addons/counterstrikesharp/shared/RetakesPluginShared
+          mkdir -p "$PLUGIN_DIR" "$SHARED_DIR"
+
+          # Main DLL + all runtime dependencies (EF Core, MySQL driver, etc.)
+          cp ./RetakesPlugin/bin/Release/net10.0/*.dll  "$PLUGIN_DIR/"
+          cp ./RetakesPlugin/bin/Release/net10.0/*.pdb  "$PLUGIN_DIR/" 2>/dev/null || true
+
+          # Exclude the CSS API dll (already present on any CSS server)
+          rm -f "$PLUGIN_DIR/CounterStrikeSharp.API.dll"
+
+          # Config templates, lang files, map spawns
+          cp -r ./RetakesPlugin/lang         "$PLUGIN_DIR/"
+          cp -r ./RetakesPlugin/map_config   "$PLUGIN_DIR/"
+
+          # Shared plugin interface
+          cp ./RetakesPluginShared/bin/Release/net10.0/RetakesPluginShared.dll      "$SHARED_DIR/"
+          cp ./RetakesPluginShared/bin/Release/net10.0/RetakesPluginShared.pdb      "$SHARED_DIR/" 2>/dev/null || true
+          cp ./RetakesPluginShared/bin/Release/net10.0/RetakesPluginShared.deps.json "$SHARED_DIR/"
+
+      # ------------------------------------------------------------------ #
+      # Package: without map configs (for users with custom spawn setups)
+      # ------------------------------------------------------------------ #
+      - name: Assemble release package (no map configs)
         run: |
-          cd RetakesPlugin
-          dotnet build
-      
-      - name: Create output directory with complete structure
-        run: |
-          mkdir -p output/addons/counterstrikesharp/plugins/RetakesPlugin
-          mkdir -p output/addons/counterstrikesharp/shared/RetakesPluginShared
-          
-          # Copy RetakesPlugin files
-          cp ./RetakesPlugin/bin/Debug/net8.0/RetakesPlugin.dll output/addons/counterstrikesharp/plugins/RetakesPlugin/
-          cp ./RetakesPlugin/bin/Debug/net8.0/RetakesPlugin.pdb output/addons/counterstrikesharp/plugins/RetakesPlugin/
-          cp -r ./RetakesPlugin/map_config output/addons/counterstrikesharp/plugins/RetakesPlugin/
-          cp -r ./RetakesPlugin/lang output/addons/counterstrikesharp/plugins/RetakesPlugin/
-          
-          # Copy RetakesPluginShared files
-          cp ./RetakesPluginShared/bin/Debug/net8.0/RetakesPluginShared.dll output/addons/counterstrikesharp/shared/RetakesPluginShared/
-          cp ./RetakesPluginShared/bin/Debug/net8.0/RetakesPluginShared.pdb output/addons/counterstrikesharp/shared/RetakesPluginShared/
-          cp ./RetakesPluginShared/bin/Debug/net8.0/RetakesPluginShared.deps.json output/addons/counterstrikesharp/shared/RetakesPluginShared/
-      
-      - name: Create output directory without map configs
-        run: |
-          mkdir -p output-no-map-configs/addons/counterstrikesharp/plugins/RetakesPlugin
-          mkdir -p output-no-map-configs/addons/counterstrikesharp/shared/RetakesPluginShared
-          
-          # Copy RetakesPlugin files (without map_config)
-          cp ./RetakesPlugin/bin/Debug/net8.0/RetakesPlugin.dll output-no-map-configs/addons/counterstrikesharp/plugins/RetakesPlugin/
-          cp ./RetakesPlugin/bin/Debug/net8.0/RetakesPlugin.pdb output-no-map-configs/addons/counterstrikesharp/plugins/RetakesPlugin/
-          cp -r ./RetakesPlugin/lang output-no-map-configs/addons/counterstrikesharp/plugins/RetakesPlugin/
-          
-          # Copy RetakesPluginShared files
-          cp ./RetakesPluginShared/bin/Debug/net8.0/RetakesPluginShared.dll output-no-map-configs/addons/counterstrikesharp/shared/RetakesPluginShared/
-          cp ./RetakesPluginShared/bin/Debug/net8.0/RetakesPluginShared.pdb output-no-map-configs/addons/counterstrikesharp/shared/RetakesPluginShared/
-          cp ./RetakesPluginShared/bin/Debug/net8.0/RetakesPluginShared.deps.json output-no-map-configs/addons/counterstrikesharp/shared/RetakesPluginShared/
-      
-      - name: Publish artifact (with map configs)
+          PLUGIN_DIR=output-no-map-configs/addons/counterstrikesharp/plugins/RetakesPlugin
+          SHARED_DIR=output-no-map-configs/addons/counterstrikesharp/shared/RetakesPluginShared
+          mkdir -p "$PLUGIN_DIR" "$SHARED_DIR"
+
+          cp ./RetakesPlugin/bin/Release/net10.0/*.dll "$PLUGIN_DIR/"
+          cp ./RetakesPlugin/bin/Release/net10.0/*.pdb "$PLUGIN_DIR/" 2>/dev/null || true
+          rm -f "$PLUGIN_DIR/CounterStrikeSharp.API.dll"
+          cp -r ./RetakesPlugin/lang "$PLUGIN_DIR/"
+
+          cp ./RetakesPluginShared/bin/Release/net10.0/RetakesPluginShared.dll       "$SHARED_DIR/"
+          cp ./RetakesPluginShared/bin/Release/net10.0/RetakesPluginShared.pdb       "$SHARED_DIR/" 2>/dev/null || true
+          cp ./RetakesPluginShared/bin/Release/net10.0/RetakesPluginShared.deps.json  "$SHARED_DIR/"
+
+      # Always upload artifacts (available for every push / PR run)
+      - name: Upload artifact (with map configs)
         uses: actions/upload-artifact@v4
         with:
           name: RetakesPlugin-${{ github.sha }}
           path: output
-      
-      - name: Publish artifact (no map configs)
+
+      - name: Upload artifact (no map configs)
         uses: actions/upload-artifact@v4
         with:
           name: RetakesPlugin-${{ github.sha }}-no-map-configs
           path: output-no-map-configs
-  
+
+  # ====================================================================== #
+  # Release job — only runs when a GitHub Release is published
+  # ====================================================================== #
   release:
     needs: build
     permissions: write-all
@@ -88,26 +102,26 @@ jobs:
     if: github.event_name == 'release'
 
     steps:
-      - name: Download build artifact (with map configs)
+      - name: Download artifact (with map configs)
         uses: actions/download-artifact@v4
         with:
           name: RetakesPlugin-${{ github.sha }}
           path: ./with-map-configs
 
-      - name: Download build artifact (no map configs)
+      - name: Download artifact (no map configs)
         uses: actions/download-artifact@v4
         with:
           name: RetakesPlugin-${{ github.sha }}-no-map-configs
           path: ./no-map-configs
 
-      - name: Create release assets
+      - name: Zip release assets
         run: |
           cd with-map-configs
-          zip -r ../RetakesPlugin-${{ github.event.release.tag_name }}.zip ./addons
+          zip -r "../RetakesPlugin-${{ github.event.release.tag_name }}.zip" ./addons
           cd ../no-map-configs
-          zip -r ../RetakesPlugin-${{ github.event.release.tag_name }}-no-map-configs.zip ./addons
+          zip -r "../RetakesPlugin-${{ github.event.release.tag_name }}-no-map-configs.zip" ./addons
 
-      - name: Upload release assets
+      - name: Attach zips to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
