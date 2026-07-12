@@ -39,15 +39,16 @@ jobs:
           dotnet nuget disable source "local-css" || true
         continue-on-error: true
 
-      - name: Restore & build entire solution
+      - name: Restore (with GitHub Packages auth)
         env:
           NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: dotnet build GardenRetakes.sln --configuration Release --configfile NuGet.config
+        run: dotnet restore GardenRetakes.sln --configfile NuGet.config
+
+      - name: Build entire solution
+        run: dotnet build GardenRetakes.sln --configuration Release --no-restore
 
       - name: Run tests
-        env:
-          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: dotnet test GardenRetakes.sln --configuration Release --no-build --configfile NuGet.config
+        run: dotnet test GardenRetakes.sln --configuration Release --no-build
 
       # ------------------------------------------------------------------ #
       # Package: with map configs (recommended for new installs)
