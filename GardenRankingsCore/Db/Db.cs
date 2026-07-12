@@ -17,6 +17,7 @@ public class Db : DbContext
     public DbSet<DuelRecord> DuelRecords { get; set; }
     public DbSet<GardenBan> GardenBans { get; set; }
     public DbSet<GardenNameOverride> GardenNameOverrides { get; set; }
+    public DbSet<WebLiveMatch> WebLiveMatches { get; set; }
 
     private static Db? Instance { get; set; }
 

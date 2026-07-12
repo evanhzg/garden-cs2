@@ -704,9 +704,8 @@
         "net10.0"
       ],
       "sources": {
-        "C:\\local-nuget": {},
-        "C:\\local-nuget": {},
-        "https://api.nuget.org/v3/index.json": {}
+        "https://api.nuget.org/v3/index.json": {},
+        "https://nuget.pkg.github.com/roflmuffin/index.json": {}
       },
       "frameworks": {
         "net10.0": {

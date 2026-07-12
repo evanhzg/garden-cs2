@@ -11,6 +11,7 @@ using GardenRankingsCore.Db;
 using GardenRankingsCore.Managers;
 using GardenRankingsCore.Models;
 using GardenRankingsCore.Rating;
+using GardenRankingsCore.Utils;
 using GardenRetakes.Core.GameModes;
 using RetakesAllocatorShared;
 using RetakesPlugin.Garden;
@@ -48,6 +49,15 @@ public partial class RankingsModule : IGardenModule
     private bool _warmupHoldActive;
     private bool _seasonRotationInProgress;
     private bool _dbReady;
+
+    private class DamageEntry
+    {
+        public int Damage { get; set; }
+        public int Hits { get; set; }
+    }
+
+    private readonly HashSet<ulong> _optOutDamageReport = new();
+    private readonly Dictionary<ulong, Dictionary<ulong, DamageEntry>> _damageGivenThisRound = new();
 
     // Test mode (css_rr_force): ranked stays active regardless of player count.
     private bool _testBypassMinPlayers;
@@ -100,6 +110,7 @@ public partial class RankingsModule : IGardenModule
         _plugin.AddTimer(0.5f, OnAfkSampleTimer, TimerFlags.REPEAT);
 
         // Round lifecycle + stat collection events (donor used [GameEventHandler]).
+        _plugin.RegisterEventHandler<EventRoundStart>(OnRoundStart);
         _plugin.RegisterEventHandler<EventRoundFreezeEnd>(OnRoundFreezeEnd);
         _plugin.RegisterEventHandler<EventRoundEnd>(OnRoundEnd);
         _plugin.RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath);
@@ -127,6 +138,8 @@ public partial class RankingsModule : IGardenModule
         _plugin.AddCommand("css_elo", "Shows your ELO and ladder placement.", OnEloCommand);
         _plugin.AddCommand("css_stats", "Shows your season stats. Usage: !stats [ranked]", OnStatsCommand);
         _plugin.AddCommand("css_top", "Shows the season's top rated players.", OnTopCommand);
+        _plugin.AddCommand("css_dmg", "Toggles the damage report preview.", OnDmgCommand);
+        _plugin.AddCommand("css_damage", "Toggles the damage report preview.", OnDmgCommand);
 
         // Competitive Retakes.
         _plugin.AddCommand("css_cr", "Start (or stop) a Competitive Retakes match.", OnCrCommand);
@@ -144,6 +157,7 @@ public partial class RankingsModule : IGardenModule
         _plugin.AddCommand("css_season_new", "Starts a new season. Usage: css_season_new [name]", OnNewSeasonCommand);
         _plugin.AddCommand("css_seasons", "Lists all seasons.", OnSeasonsCommand);
         _plugin.AddCommand("css_rankings_reload_config", "Reloads the rankings config.", OnReloadConfigCommand);
+        _plugin.AddCommand("css_autoscramble", "Toggles auto team scramble every round.", OnAutoScrambleCommand);
 
         RegisterMapCommands();
 
@@ -226,6 +240,60 @@ public partial class RankingsModule : IGardenModule
     #endregion
 
     #region Round lifecycle
+
+    public HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info)
+    {
+        PrintDamageReports();
+        _damageGivenThisRound.Clear();
+        return HookResult.Continue;
+    }
+
+    private void PrintDamageReports()
+    {
+        foreach (var player in Utilities.GetPlayers().Where(Helpers.IsHumanPlayer))
+        {
+            var steamId = Helpers.GetSteamId(player);
+            if (steamId == 0 || _optOutDamageReport.Contains(steamId))
+            {
+                continue;
+            }
+
+            bool printedHeader = false;
+            if (_damageGivenThisRound.TryGetValue(steamId, out var given))
+            {
+                foreach (var (victimId, entry) in given)
+                {
+                    var victim = Utilities.GetPlayers().FirstOrDefault(p => Helpers.GetSteamId(p) == victimId);
+                    if (victim != null)
+                    {
+                        if (!printedHeader)
+                        {
+                            player.PrintToChat($" \x08[\x0C DAMAGE \x08]-------------------------");
+                            printedHeader = true;
+                        }
+                        player.PrintToChat($" \x08Damage Given to \x04{victim.PlayerName}\x08 - \x06{entry.Damage}\x08 in \x06{entry.Hits}\x08 hits");
+                    }
+                }
+            }
+
+            foreach (var (attackerId, attackerDamage) in _damageGivenThisRound)
+            {
+                if (attackerDamage.TryGetValue(steamId, out var receivedEntry))
+                {
+                    var attacker = Utilities.GetPlayers().FirstOrDefault(p => Helpers.GetSteamId(p) == attackerId);
+                    if (attacker != null)
+                    {
+                        if (!printedHeader)
+                        {
+                            player.PrintToChat($" \x08[\x0C DAMAGE \x08]-------------------------");
+                            printedHeader = true;
+                        }
+                        player.PrintToChat($" \x08Damage Taken from \x02{attacker.PlayerName}\x08 - \x06{receivedEntry.Damage}\x08 in \x06{receivedEntry.Hits}\x08 hits");
+                    }
+                }
+            }
+        }
+    }
 
     public HookResult OnRoundFreezeEnd(EventRoundFreezeEnd @event, GameEventInfo info)
     {
@@ -390,6 +458,8 @@ public partial class RankingsModule : IGardenModule
                                 p.PlayerName, p.EloAfter,
                                 records.PreviousServerRecordHolder ?? "?",
                                 records.PreviousServerRecord ?? 0]);
+                            _ = DiscordWebhook.SendAsync(announcements.DiscordWebhookUrl, 
+                                $"🔥 **NEW SERVER RECORD!** {p.PlayerName} just reached **{p.EloAfter}** ELO!");
                         }
 
                         if (records.PersonalBestBroken && announcements.PersonalBestBroken)
@@ -397,8 +467,16 @@ public partial class RankingsModule : IGardenModule
                             recordMessages.Add(Translator.Instance[
                                 "records.personal_best_broken",
                                 p.PlayerName, p.EloAfter, records.PreviousPersonalBest ?? 0]);
+                            _ = DiscordWebhook.SendAsync(announcements.DiscordWebhookUrl, 
+                                $"📈 **Personal Best:** {p.PlayerName} just hit a new peak of **{p.EloAfter}** ELO!");
                         }
                     }
+                }
+
+                foreach (var p in players.Where(p => p.ClutchWon && p.ClutchVersus >= 3))
+                {
+                    _ = DiscordWebhook.SendAsync(announcements.DiscordWebhookUrl, 
+                        $"🔥 **CLUTCH!** {p.PlayerName} just won a **1v{p.ClutchVersus}** clutch on {ctx.Map}!");
                 }
 
                 Server.NextFrame(() =>
@@ -467,14 +545,40 @@ public partial class RankingsModule : IGardenModule
 
     public HookResult OnPlayerHurt(EventPlayerHurt @event, GameEventInfo info)
     {
-        if (@event == null! || !_collector.IsCollecting)
+        if (@event == null!)
+        {
+            return HookResult.Continue;
+        }
+
+        var attackerId = Helpers.GetSteamId(@event.Attacker);
+        var victimId = Helpers.GetSteamId(@event.Userid);
+
+        if (attackerId != 0 && victimId != 0 && attackerId != victimId)
+        {
+            if (!_damageGivenThisRound.TryGetValue(attackerId, out var attackerDamage))
+            {
+                attackerDamage = new Dictionary<ulong, DamageEntry>();
+                _damageGivenThisRound[attackerId] = attackerDamage;
+            }
+
+            if (!attackerDamage.TryGetValue(victimId, out var entry))
+            {
+                entry = new DamageEntry();
+                attackerDamage[victimId] = entry;
+            }
+
+            entry.Damage += @event.DmgHealth;
+            entry.Hits++;
+        }
+
+        if (!_collector.IsCollecting)
         {
             return HookResult.Continue;
         }
 
         _collector.OnPlayerHurt(
-            Helpers.GetSteamId(@event.Userid),
-            Helpers.GetSteamId(@event.Attacker),
+            victimId,
+            attackerId,
             @event.DmgHealth,
             @event.Weapon
         );
@@ -1433,6 +1537,39 @@ public partial class RankingsModule : IGardenModule
 
         Configs.Load(_plugin.ModuleDirectory);
         commandInfo.ReplyToCommand($"{MessagePrefix}Config reloaded for version {PluginInfo.Version}.");
+    }
+
+    public void OnAutoScrambleCommand(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (!HasRootPermission(player, commandInfo))
+        {
+            return;
+        }
+
+        var cfg = Configs.GetConfigData().ModeCvars;
+        cfg.ScrambleTeamsEachRound = !cfg.ScrambleTeamsEachRound;
+        Configs.Save();
+
+        var status = cfg.ScrambleTeamsEachRound ? "enabled" : "disabled";
+        Helpers.PrintToAll($"{MessagePrefix}Auto team scramble every round is now {status}.");
+    }
+
+    public void OnDmgCommand(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (player == null) return;
+        var steamId = Helpers.GetSteamId(player);
+        if (steamId == 0) return;
+
+        if (_optOutDamageReport.Contains(steamId))
+        {
+            _optOutDamageReport.Remove(steamId);
+            player.PrintToChat($"{MessagePrefix}Damage report \x06enabled\x01.");
+        }
+        else
+        {
+            _optOutDamageReport.Add(steamId);
+            player.PrintToChat($"{MessagePrefix}Damage report \x02disabled\x01.");
+        }
     }
 
     #endregion

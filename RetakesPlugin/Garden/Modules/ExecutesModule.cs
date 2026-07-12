@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Commands;
@@ -22,8 +23,10 @@ namespace RetakesPlugin.Garden.Modules;
 /// Lineups are captured from real throws: throw the nade in game, then !gexec nade.
 ///
 /// NOTE: server-side projectile spawning is engine-sensitive; smokes use the
-/// InitializeSpawnFromWorld input (nade-practice technique). If a type
-/// misbehaves after a CS2 update, check ThrowUtility first.
+/// native CXGrenadeProjectile::Create() via GrenadeFunctions (smoke/HE) for
+/// proper trajectory + auto-detonation, with CreateEntityByName fallback
+/// for molotov/flash. If a type misbehaves after a CS2 update, update the
+/// byte-pattern signatures in GrenadeFunctions.cs first.
 /// </summary>
 public class ExecutesModule : IGardenModule
 {
@@ -45,6 +48,8 @@ public class ExecutesModule : IGardenModule
         float VelX, float VelY, float VelZ);
 
     private readonly Dictionary<ulong, CapturedThrow> _lastThrow = new();
+
+
 
     public string Name => "Executes";
     public bool Enabled => _host.Settings.Executes.Enabled;
@@ -100,6 +105,7 @@ public class ExecutesModule : IGardenModule
 
         _plugin.AddCommand("css_gexec", "Executes strategies: new/edit/tstart/ctsetup/nade/list/info/del/play/random.", OnGExecCommand);
     }
+
 
     public void OnMapStart(string mapName)
     {
@@ -288,7 +294,12 @@ public class ExecutesModule : IGardenModule
         return HookResult.Continue;
     }
 
-    /// <summary>Spawns a grenade projectile with the recorded position + velocity.</summary>
+    /// <summary>
+    /// Spawns a grenade projectile with the recorded position + velocity.
+    /// Smoke/HE use the game's native CXGrenadeProjectile::Create() via
+    /// GrenadeFunctions — these fly the real trajectory and detonate properly.
+    /// Molotov/flash (and signature failures) fall back to CreateEntityByName.
+    /// </summary>
     internal void ThrowUtility(UtilityThrow utility)
     {
         // Also used by Fast-strat (R7) and by the !gedit nade preview (Edit mode).
@@ -312,49 +323,67 @@ public class ExecutesModule : IGardenModule
             return;
         }
 
-        // Item-definition indexes of the grenade weapons (CT molotov = incgrenade).
-        var itemIndex = utility.Type switch
-        {
-            UtilityType.Smoke => 45,
-            UtilityType.HE => 44,
-            UtilityType.Flash => 43,
-            UtilityType.Molotov => team == CsTeam.CounterTerrorist ? 48 : 46,
-            _ => 0,
-        };
-
         try
         {
-            // Do like MatchZy: call the game's own native Create() so smoke/molotov/
-            // HE actually detonate (CreateEntityByName only bounces). The native
-            // Create already spawns the entity — only flash (no Create sig) uses
-            // CreateEntityByName + DispatchSpawn. Smoke self-initialises; the others
-            // get the trajectory + thrower wired afterwards (verbatim MatchZy order).
-            CBaseCSGrenadeProjectile? projectile = utility.Type switch
-            {
-                UtilityType.Smoke => GrenadeFunctions.CSmokeGrenadeProjectile_CreateFunc.Invoke(
-                    position.Handle, angle.Handle, velocity.Handle, velocity.Handle, IntPtr.Zero, itemIndex, (int) team),
-                UtilityType.Molotov => GrenadeFunctions.CMolotovProjectile_CreateFunc.Invoke(
-                    position.Handle, angle.Handle, velocity.Handle, velocity.Handle, IntPtr.Zero, itemIndex),
-                UtilityType.HE => GrenadeFunctions.CHEGrenadeProjectile_CreateFunc.Invoke(
-                    position.Handle, angle.Handle, velocity.Handle, velocity.Handle, IntPtr.Zero, itemIndex),
-                UtilityType.Flash => CreateFlash(),
-                _ => null,
-            };
+            var pawnPtr = thrower.PlayerPawn.Value.Handle;
 
-            if (projectile is null || !projectile.IsValid)
+            // --- Try native Create for Smoke / HE (proper trajectory + detonation) ---
+            CBaseCSGrenadeProjectile? projectile = null;
+
+            if (utility.Type == UtilityType.Smoke && GrenadeFunctions.Smoke is not null)
             {
-                Logger.LogWarning("Garden/Executes", $"ThrowUtility: {utility.Type} create returned null.");
-                return;
+                try
+                {
+                    var angVel = new Vector(velocity.X, velocity.Y, velocity.Z);
+                    projectile = GrenadeFunctions.Smoke.Invoke(
+                        position.Handle, angle.Handle,
+                        velocity.Handle, angVel.Handle,
+                        pawnPtr, 0, (int) team);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning("Garden/Executes", $"Native smoke Create failed, using fallback: {ex.Message}");
+                    projectile = null;
+                }
+            }
+            else if (utility.Type == UtilityType.HE && GrenadeFunctions.He is not null)
+            {
+                try
+                {
+                    var angVel = new Vector(velocity.X, velocity.Y, velocity.Z);
+                    projectile = GrenadeFunctions.He.Invoke(
+                        position.Handle, angle.Handle,
+                        velocity.Handle, angVel.Handle,
+                        pawnPtr, 0);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarning("Garden/Executes", $"Native HE Create failed, using fallback: {ex.Message}");
+                    projectile = null;
+                }
             }
 
-            // Diagnostic: confirm the native Create produced the right entity type.
-            Logger.LogInfo("Garden/Executes",
-                $"ThrowUtility requested={utility.Type} itemIndex={itemIndex} -> designer={projectile.DesignerName}");
-
-            // Smoke's native Create fully sets itself up; everything else needs the
-            // trajectory + thrower wired (MatchZy skips this for smoke only).
-            if (projectile.DesignerName != "smokegrenade_projectile")
+            // --- Fallback: CreateEntityByName (molotov, flash, or failed native) ---
+            if (projectile is null || !projectile.IsValid)
             {
+                projectile = utility.Type switch
+                {
+                    UtilityType.Smoke => Utilities.CreateEntityByName<CSmokeGrenadeProjectile>("smokegrenade_projectile"),
+                    UtilityType.Molotov => Utilities.CreateEntityByName<CMolotovProjectile>("molotov_projectile"),
+                    UtilityType.HE => Utilities.CreateEntityByName<CHEGrenadeProjectile>("hegrenade_projectile"),
+                    UtilityType.Flash => Utilities.CreateEntityByName<CFlashbangProjectile>("flashbang_projectile"),
+                    _ => null,
+                };
+
+                if (projectile is null || !projectile.IsValid)
+                {
+                    Logger.LogWarning("Garden/Executes", $"ThrowUtility: {utility.Type} create returned null.");
+                    return;
+                }
+
+                // CreateEntityByName path: wire everything up manually.
+                projectile.DispatchSpawn();
+
                 projectile.InitialPosition.X = position.X;
                 projectile.InitialPosition.Y = position.Y;
                 projectile.InitialPosition.Z = position.Z;
@@ -376,14 +405,6 @@ public class ExecutesModule : IGardenModule
         {
             Logger.LogError("Garden/Executes", $"ThrowUtility({utility.Type}) failed: {ex.Message}");
         }
-    }
-
-    /// <summary>Flash has no native Create signature — spawn it the normal way.</summary>
-    private static CFlashbangProjectile? CreateFlash()
-    {
-        var flash = Utilities.CreateEntityByName<CFlashbangProjectile>("flashbang_projectile");
-        flash?.DispatchSpawn();
-        return flash;
     }
 
     private static CCSPlayerController? PickThrower(CsTeam preferredTeam)

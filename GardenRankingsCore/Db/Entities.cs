@@ -262,6 +262,22 @@ public class GardenNameOverride
 }
 
 /// <summary>
+/// Website-owned: the live state of the server's current match (JSON blob),
+/// updated at the end of every round. The website polls this for the Live Spectator page.
+/// </summary>
+public class WebLiveMatch
+{
+    [Key]
+    [DatabaseGenerated(DatabaseGeneratedOption.None)]
+    public int ServerId { get; set; }
+
+    [Column(TypeName = "longtext")]
+    public string Data { get; set; } = "";
+
+    public DateTime UpdatedAtUtc { get; set; }
+}
+
+/// <summary>
 /// Garden merged plugin (Duels mode): one row per completed 1v1 — feeds the
 /// website duels ladder and future Discord stats.
 /// </summary>

@@ -12,3 +12,4 @@ C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\obj\Debu
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\obj\Debug\net10.0\RetakesAllocatorCore.pdb
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\obj\Debug\net10.0\RetakesAllocatorCore.genruntimeconfig.cache
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\obj\Debug\net10.0\ref\RetakesAllocatorCore.dll
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\obj\Debug\net10.0\RetakesAllocatorCore.sourcelink.json

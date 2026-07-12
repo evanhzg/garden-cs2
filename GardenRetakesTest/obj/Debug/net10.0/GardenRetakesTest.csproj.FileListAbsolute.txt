@@ -100,3 +100,4 @@ C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesTest\obj\Debug\n
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesTest\obj\Debug\net10.0\GardenRetakesTest.pdb
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesTest\obj\Debug\net10.0\GardenRetakesTest.genruntimeconfig.cache
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesTest\obj\Debug\net10.0\ref\GardenRetakesTest.dll
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesTest\obj\Debug\net10.0\GardenRetakesTest.sourcelink.json

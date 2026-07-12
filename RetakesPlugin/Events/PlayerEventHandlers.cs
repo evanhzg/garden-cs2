@@ -40,8 +40,9 @@ public class PlayerEventHandlers
                     return;
                 }
 
-                player.ChangeTeam(CsTeam.Spectator);
-                player.ExecuteClientCommand("teammenu");
+                // Auto-join Terrorist team instead of prompting the buggy teammenu.
+                // The balancer will correct the T/CT ratios at round prestart.
+                player.ChangeTeam(CsTeam.Terrorist);
             });
         }
 

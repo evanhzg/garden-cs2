@@ -118,6 +118,15 @@ public static class SchemaUpgrades
             )
             """);
 
+        // Live Match State (for Website Spectator Page)
+        db.Database.ExecuteSqlRaw($"""
+            CREATE TABLE IF NOT EXISTS WebLiveMatches (
+                ServerId INT NOT NULL PRIMARY KEY,
+                Data LONGTEXT NOT NULL,
+                UpdatedAtUtc {dateTime} NOT NULL
+            )
+            """);
+
         // Garden merged plugin (Duels mode): one row per completed 1v1.
         db.Database.ExecuteSqlRaw($"""
             CREATE TABLE IF NOT EXISTS DuelRecords (

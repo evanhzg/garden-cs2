@@ -9,3 +9,4 @@ C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorShared\obj\Re
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorShared\obj\Release\net10.0\refint\RetakesAllocatorShared.dll
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorShared\obj\Release\net10.0\RetakesAllocatorShared.pdb
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorShared\obj\Release\net10.0\ref\RetakesAllocatorShared.dll
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorShared\obj\Release\net10.0\RetakesAllocatorShared.sourcelink.json

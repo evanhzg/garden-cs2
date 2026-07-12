@@ -8,6 +8,7 @@ using GardenRankingsCore.Config;
 using GardenRankingsCore.Db;
 using GardenRankingsCore.Managers;
 using GardenRankingsCore.Rating;
+using GardenRankingsCore.Utils;
 
 namespace GardenRankings;
 
@@ -111,12 +112,7 @@ public partial class RankingsModule
             return;
         }
 
-        if (_ranked.IsActive)
-        {
-            return;
-        }
-
-        // Classic mode: clutch scheduling first; scramble only when no clutch is set up.
+        // Classic and Ranked mode: clutch scheduling first; scramble only when no clutch is set up.
         _clutch.OnRoundPlayed();
         var teamHumans = Helpers.GetTeamHumanPlayers();
 
@@ -124,7 +120,7 @@ public partial class RankingsModule
         {
             PrepareClutchRound(teamHumans);
         }
-        else if (Configs.GetConfigData().ModeCvars.ScrambleTeamsEachClassicRound && !_crSetupActive)
+        else if (Configs.GetConfigData().ModeCvars.ScrambleTeamsEachRound && !_crSetupActive)
         {
             // Never shuffle the sides mid CR-setup: players are arranging teams.
             _plugin.AddTimer(0.2f, ScrambleTeamsForNextRound);
@@ -373,6 +369,7 @@ public partial class RankingsModule
 
         ApplyModeCvars();
         PushNextCrRoundPlan();
+        LiveMatchBroadcaster.TriggerUpdate(_cr);
 
         Helpers.PrintToAll(Translator.Instance["cr.match_started",
             _cr.TeamAName, _cr.TeamBName, Configs.GetConfigData().Competitive.RoundsPerHalf]);
@@ -408,6 +405,7 @@ public partial class RankingsModule
         {
             Helpers.PrintToAll(Translator.Instance["cr.score", _cr.ScoreLine(), _cr.CurrentHalf]);
         }
+        LiveMatchBroadcaster.TriggerUpdate(_cr);
 
         switch (matchEvent)
         {
@@ -517,6 +515,7 @@ public partial class RankingsModule
         _cr.Cancel();
         _plugin.SuspendTeamManagement = false;
         ApplyModeCvars();
+        LiveMatchBroadcaster.TriggerUpdate(_cr);
 
         Task.Run(() =>
         {
@@ -532,6 +531,17 @@ public partial class RankingsModule
                     seasonId, map, startedAt,
                     teamAKey, teamAName, teamBKey, teamBName, teamSize,
                     scoreA, scoreB, result, deltaA, deltaB);
+
+                var url = Configs.GetConfigData().Announcements.DiscordWebhookUrl;
+                if (!string.IsNullOrEmpty(url))
+                {
+                    string outcomeMsg = result == "draw" 
+                        ? $"🤝 **DRAW**" 
+                        : $"🏆 **{(result == "A" ? teamAName : teamBName)} WINS**";
+
+                    _ = DiscordWebhook.SendAsync(url, 
+                        $"{outcomeMsg}\n**{teamAName}** ({scoreA}) vs **{teamBName}** ({scoreB})\nMap: {map}");
+                }
 
                 Server.NextFrame(() =>
                 {
@@ -565,6 +575,7 @@ public partial class RankingsModule
         _crStopInitiator = 0;
         _plugin.SuspendTeamManagement = false;
         ApplyModeCvars();
+        LiveMatchBroadcaster.TriggerUpdate(_cr);
         Helpers.PrintToAll(Translator.Instance["cr.match_cancelled"]);
 
         Task.Run(() =>

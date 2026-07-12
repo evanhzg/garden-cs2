@@ -175,3 +175,4 @@ C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorTest\obj\Debu
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorTest\obj\Debug\net10.0\RetakesAllocatorTest.pdb
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorTest\obj\Debug\net10.0\RetakesAllocatorTest.genruntimeconfig.cache
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorTest\obj\Debug\net10.0\ref\RetakesAllocatorTest.dll
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorTest\obj\Debug\net10.0\RetakesAllocatorTest.sourcelink.json

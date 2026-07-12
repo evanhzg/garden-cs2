@@ -10,3 +10,4 @@ C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\obj\Releas
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\obj\Release\net10.0\refint\GardenRankingsCore.dll
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\obj\Release\net10.0\GardenRankingsCore.pdb
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\obj\Release\net10.0\ref\GardenRankingsCore.dll
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\obj\Release\net10.0\GardenRankingsCore.sourcelink.json

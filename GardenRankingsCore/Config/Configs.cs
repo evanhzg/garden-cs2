@@ -288,6 +288,7 @@ public record AnnouncementsConfig
     public bool EloChangeToPlayer { get; set; } = true;
     public bool ServerRecordBroken { get; set; } = true;
     public bool PersonalBestBroken { get; set; } = true;
+    public string DiscordWebhookUrl { get; set; } = "";
 }
 
 public record SeasonConfig
@@ -320,7 +321,7 @@ public record ModeCvarsConfig
     // Ranked Retakes: locked-down spectating, no scramble.
     public List<string> RankedCommands { get; set; } = new()
     {
-        "mp_forcecamera 1",
+        "mp_forcecamera 0",
     };
 
     // Competitive Retakes: fixed teams, free spectating per spec.
@@ -329,8 +330,8 @@ public record ModeCvarsConfig
         "mp_forcecamera 0",
     };
 
-    // Shuffle T/CT humans every round while in classic mode (never in RR/CR).
-    public bool ScrambleTeamsEachClassicRound { get; set; } = true;
+    // Shuffle T/CT humans every round while in classic mode and RR (never in CR).
+    public bool ScrambleTeamsEachRound { get; set; } = true;
 }
 
 public record CompetitiveConfig

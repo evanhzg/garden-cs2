@@ -175,3 +175,4 @@ C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsTest\obj\Debug\
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsTest\obj\Debug\net10.0\GardenRankingsTest.pdb
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsTest\obj\Debug\net10.0\GardenRankingsTest.genruntimeconfig.cache
 C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsTest\obj\Debug\net10.0\ref\GardenRankingsTest.dll
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsTest\obj\Debug\net10.0\GardenRankingsTest.sourcelink.json
