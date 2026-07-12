@@ -1,22 +1,29 @@
 <div align="center">
 
-# 🌿 Garden Retakes
+# Garden CS2 Plugin
 
 **A feature-complete CS2 retakes plugin — rankings, inventory, duels, executes, and more.**
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=flat-square)](LICENSE)
-[![Build](https://img.shields.io/github/actions/workflow/status/evanhzg/garden-retakes/plugin-build.yml?branch=master&style=flat-square&label=Build)](../../actions)
-[![Website](https://img.shields.io/badge/Live%20server-retakes.fr-brightgreen?style=flat-square)](https://retakes.fr)
 [![Website Repo](https://img.shields.io/badge/Website%20repo-garden--retakes--website-orange?style=flat-square)](https://github.com/evanhzg/garden-retakes-website)
 
 </div>
 
 ---
 
-Garden Retakes is the all-in-one CS2 plugin powering **[retakes.fr](https://retakes.fr)**.
+Garden CS2 / Garden Retakes is the all-in-one CS2 plugin powering **[retakes.fr](https://retakes.fr)** and is made on top of [CounterStrikeSharp](https://github.com/roflmuffin/counterstrikesharp) by roflmuffin, all credits go to the author and the talented contributors to this wonderful framework.
+
+The website is linked to a private server, your data won't be linked.
+
 It started as a fork of [b3none/cs2-retakes](https://github.com/b3none/cs2-retakes) and has since grown into a full platform: weapon allocator, ELO/season rankings, Competitive Retakes, Duels, Executes, Fast-Strat, an in-game admin system, instant defuse, a visual spawn editor with mode flags, and a fun Spotlight module — all integrated into a single deployable plugin.
 
 The companion website ([retakes.fr](https://retakes.fr) · [repo](https://github.com/evanhzg/garden-retakes-website)) reads the same MySQL database and provides a season ladder, deep per-player stats, an in-game skin builder (Inventory Simulator), a web-based admin panel, and match history.
+
+
+#### Author's (myself, then) personal note and AI notice
+This entire project along the website were both made nearly entirely using AI. This started as a very personal project to try new abilities offered by Fable 5 and other models compatibilities. I am, as a person, concerned and careful about AI usage and development. It's current form might have a big impact both beneficial and devastating towards dev communities such as the open-source one.
+
+I do not consider this project 100% mine as I used this technology for most of it but I guess making it open-source could still benefit some of the plugin developers or Counter-Strike players wanting a set of tools to enjoy with a single installation on their private servers.
 
 ---
 
