@@ -1,0 +1,11 @@
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesCore\bin\Debug\net10.0\GardenRetakesCore.deps.json
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesCore\bin\Debug\net10.0\GardenRetakesCore.dll
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesCore\bin\Debug\net10.0\GardenRetakesCore.pdb
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesCore\obj\Debug\net10.0\GardenRetakesCore.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesCore\obj\Debug\net10.0\GardenRetakesCore.AssemblyInfoInputs.cache
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesCore\obj\Debug\net10.0\GardenRetakesCore.AssemblyInfo.cs
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesCore\obj\Debug\net10.0\GardenRetakesCore.csproj.CoreCompileInputs.cache
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesCore\obj\Debug\net10.0\GardenRetakesCore.dll
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesCore\obj\Debug\net10.0\refint\GardenRetakesCore.dll
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesCore\obj\Debug\net10.0\GardenRetakesCore.pdb
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRetakesCore\obj\Debug\net10.0\ref\GardenRetakesCore.dll

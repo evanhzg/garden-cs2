@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- net10.0: required by the TEMPORARY CSS fix-game-update PR build. -->
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- Ship the allocator's runtime deps (EF Core, SQLite, MySQL) next to the plugin dll. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CounterStrikeSharp.API" Version="1.0.371" />
+    <PackageReference Include="Microsoft.Extensions.Localization.Abstractions" Version="10.0.8" />
+    <ProjectReference Include="..\RetakesPluginShared\RetakesPluginShared.csproj" />
+    <ProjectReference Include="..\GardenRetakesCore\GardenRetakesCore.csproj" />
+    <ProjectReference Include="..\RetakesAllocatorCore\RetakesAllocatorCore.csproj" />
+    <ProjectReference Include="..\RetakesAllocatorShared\RetakesAllocatorShared.csproj" />
+    <ProjectReference Include="..\GardenRankingsCore\GardenRankingsCore.csproj" />
+  </ItemGroup>
+
+  <!-- Copy the lang folder into the build output so the server always gets our en.json / fr.json -->
+  <ItemGroup>
+    <Content Include="lang\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>lang\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition=" '$(CopyPath)' != '' ">
+    <Exec Command="copy &quot;$(TargetPath)&quot; &quot;$(CopyPath)&quot; " />
+    <Exec Command="copy &quot;$(TargetDir)$(TargetName).pdb&quot; &quot;$(CopyPath)&quot; " />
+  </Target>
+</Project>

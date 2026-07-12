@@ -1,0 +1,12 @@
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\bin\Debug\net10.0\GardenRankingsCore.deps.json
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\bin\Debug\net10.0\GardenRankingsCore.dll
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\bin\Debug\net10.0\GardenRankingsCore.pdb
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\obj\Debug\net10.0\GardenRankingsCore.csproj.AssemblyReference.cache
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\obj\Debug\net10.0\GardenRankingsCore.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\obj\Debug\net10.0\GardenRankingsCore.AssemblyInfoInputs.cache
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\obj\Debug\net10.0\GardenRankingsCore.AssemblyInfo.cs
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\obj\Debug\net10.0\GardenRankingsCore.csproj.CoreCompileInputs.cache
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\obj\Debug\net10.0\GardenRankingsCore.dll
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\obj\Debug\net10.0\refint\GardenRankingsCore.dll
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\obj\Debug\net10.0\GardenRankingsCore.pdb
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\GardenRankingsCore\obj\Debug\net10.0\ref\GardenRankingsCore.dll

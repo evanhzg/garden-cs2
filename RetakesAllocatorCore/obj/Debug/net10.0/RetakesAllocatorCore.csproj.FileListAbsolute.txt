@@ -1,0 +1,14 @@
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\bin\Debug\net10.0\RetakesAllocatorCore.deps.json
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\bin\Debug\net10.0\RetakesAllocatorCore.runtimeconfig.json
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\bin\Debug\net10.0\RetakesAllocatorCore.dll
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\bin\Debug\net10.0\RetakesAllocatorCore.pdb
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\obj\Debug\net10.0\RetakesAllocatorCore.csproj.AssemblyReference.cache
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\obj\Debug\net10.0\RetakesAllocatorCore.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\obj\Debug\net10.0\RetakesAllocatorCore.AssemblyInfoInputs.cache
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\obj\Debug\net10.0\RetakesAllocatorCore.AssemblyInfo.cs
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\obj\Debug\net10.0\RetakesAllocatorCore.csproj.CoreCompileInputs.cache
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\obj\Debug\net10.0\RetakesAllocatorCore.dll
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\obj\Debug\net10.0\refint\RetakesAllocatorCore.dll
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\obj\Debug\net10.0\RetakesAllocatorCore.pdb
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\obj\Debug\net10.0\RetakesAllocatorCore.genruntimeconfig.cache
+C:\Users\evan\Documents\CS2 Mod Dev\Garden-retakes\RetakesAllocatorCore\obj\Debug\net10.0\ref\RetakesAllocatorCore.dll
