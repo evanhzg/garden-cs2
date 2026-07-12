@@ -30,15 +30,24 @@ jobs:
           # Must match TargetFramework in RetakesPlugin.csproj (net10.0)
           dotnet-version: "10.0.x"
 
+      - name: Remove stale global NuGet sources
+        # The GitHub runner may carry a user-level NuGet.Config that still
+        # references C:/local-nuget (a Windows-only temporary feed). Disabling
+        # it here prevents NU1301 before our solution-level config takes over.
+        run: |
+          dotnet nuget list source || true
+          dotnet nuget disable source "local-css" || true
+        continue-on-error: true
+
       - name: Restore & build entire solution
         env:
           NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: dotnet build GardenRetakes.sln --configuration Release
+        run: dotnet build GardenRetakes.sln --configuration Release --configfile NuGet.config
 
       - name: Run tests
         env:
           NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: dotnet test GardenRetakes.sln --configuration Release --no-build
+        run: dotnet test GardenRetakes.sln --configuration Release --no-build --configfile NuGet.config
 
       # ------------------------------------------------------------------ #
       # Package: with map configs (recommended for new installs)
