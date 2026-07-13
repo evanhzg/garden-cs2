@@ -14,6 +14,9 @@ public enum GameModeKind
 
     /// <summary>R11: dedicated editing mode — no bomb, no timer, noclip, markers.</summary>
     Edit,
+
+    /// <summary>SpellTakers: LoL-inspired MOBA gamemode (ARAM).</summary>
+    SpellTakers,
 }
 
 public enum SmallServerState
@@ -84,6 +87,9 @@ public class GameModeManager
                 return true;
             case "edit" or "editor" or "editmode":
                 mode = GameModeKind.Edit;
+                return true;
+            case "spelltakers" or "aram" or "st":
+                mode = GameModeKind.SpellTakers;
                 return true;
             default:
                 mode = GameModeKind.Retakes;

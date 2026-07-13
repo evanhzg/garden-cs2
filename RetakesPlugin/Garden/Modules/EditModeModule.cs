@@ -150,7 +150,7 @@ public class EditModeModule : IGardenModule
         EnsureTick();
         _plugin.AddTimer(3.0f, SweepBombs, CounterStrikeSharp.API.Modules.Timers.TimerFlags.REPEAT | CounterStrikeSharp.API.Modules.Timers.TimerFlags.STOP_ON_MAPCHANGE);
 
-        RenderMarkers(Category.Retakes);
+        RenderMarkers(new EditorState { Category = Category.Retakes });
         Server.PrintToChatAll($"{Prefix} {_plugin.Localizer["garden.edit.started"]}");
     }
 
@@ -249,7 +249,7 @@ public class EditModeModule : IGardenModule
                 _duels.SaveArenas();
                 state.ArenaIndex = _duels.ArenaStore.Arenas.Count - 1;
                 info.ReplyToCommand($"{Prefix} {_plugin.Localizer["garden.edit.arena_created", raw]}");
-                RenderMarkers(state.Category);
+                RenderMarkers(state);
                 return;
             }
             case Prompt.NewStrategy:
@@ -272,7 +272,7 @@ public class EditModeModule : IGardenModule
                 state.StrategyIndex = _executes.Store.Strategies.Count - 1;
                 info.ReplyToCommand($"{Prefix} {_plugin.Localizer["garden.edit.strategy_created",
                     parts[1], parts[0].ToUpperInvariant()]}");
-                RenderMarkers(state.Category);
+                RenderMarkers(state);
                 return;
             }
             case Prompt.NewScenario:
@@ -404,7 +404,7 @@ public class EditModeModule : IGardenModule
             {
                 s.Category = (Category) (((int) s.Category + 1) % 3);
                 s.Index = 0;
-                RenderMarkers(s.Category);
+                RenderMarkers(s);
             }),
         };
 
@@ -485,7 +485,7 @@ public class EditModeModule : IGardenModule
                     if (strategies.Count == 0) return;
                     s.StrategyIndex = (s.StrategyIndex + 1) % strategies.Count;
                     s.NadeIndex = 0;
-                    RenderMarkers(s.Category);
+                    RenderMarkers(s);
                 }));
                 options.Add(new("🆕 New strategy (then: !name <a|b> <name>)", (p, s) =>
                 {
@@ -638,7 +638,7 @@ public class EditModeModule : IGardenModule
         _plugin.SpawnManager?.CalculateMapSpawns();
 
         player.PrintToChat($"{Prefix} {(hasScenario ? "Removed" : "Added")} '{state.ActiveScenario.Replace("scenario:", "")}' {(hasScenario ? "from" : "to")} nearest spawn.");
-        RenderMarkers(state.Category);
+        RenderMarkers(state);
     }
 
     private void DeleteNearestSpawn(CCSPlayerController player, EditorState state)

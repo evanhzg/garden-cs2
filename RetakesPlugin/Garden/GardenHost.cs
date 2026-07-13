@@ -49,6 +49,7 @@ public class GardenHost
         _modules.Add(new FastStratModule(plugin, this, executes));
         _modules.Add(new EditModeModule(plugin, this, admin, duels, executes));
         _modules.Add(new SpotlightModule(plugin, this, admin));
+        _modules.Add(new SpellTakersModule(plugin, this));
     }
 
     public void Load(bool hotReload)

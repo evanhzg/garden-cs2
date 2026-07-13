@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("RetakesAllocatorCore")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8edc067297c981ba7e3411ac9c483e7a10d9f2ec")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+46a05a6df9b8dbd5864cd1424cd5dfa3acb84a98")]
 [assembly: System.Reflection.AssemblyProductAttribute("RetakesAllocatorCore")]
 [assembly: System.Reflection.AssemblyTitleAttribute("RetakesAllocatorCore")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

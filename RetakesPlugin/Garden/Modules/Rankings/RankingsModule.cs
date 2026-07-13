@@ -907,7 +907,9 @@ public partial class RankingsModule : IGardenModule
                         {
                             var hours = total / 3600;
                             var minutes = (total % 3600) / 60;
-                            player.PrintToChat($" {MessagePrefix}\x08You have spent \x04{hours} hours \x08and \x04{minutes} minutes \x08playing on this server!");
+                            var hoursStr = hours == 1 ? "1 hour" : $"{hours} hours";
+                            var minutesStr = minutes == 1 ? "1 minute" : $"{minutes} minutes";
+                            player.PrintToChat($" {MessagePrefix}\x08You have spent \x04{hoursStr} \x08and \x04{minutesStr} \x08playing on this server!");
                         }
                     });
                 }
@@ -1325,7 +1327,9 @@ public partial class RankingsModule : IGardenModule
                 {
                     var hours = total / 3600;
                     var minutes = (total % 3600) / 60;
-                    current.PrintToChat($" {MessagePrefix}\x08You have spent \x04{hours} hours \x08and \x04{minutes} minutes \x08playing on this server!");
+                    var hoursStr = hours == 1 ? "1 hour" : $"{hours} hours";
+                    var minutesStr = minutes == 1 ? "1 minute" : $"{minutes} minutes";
+                    current.PrintToChat($" {MessagePrefix}\x08You have spent \x04{hoursStr} \x08and \x04{minutesStr} \x08playing on this server!");
                 }
             });
         });

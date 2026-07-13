@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("RetakesAllocatorTest")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+622cd9754a79253a656e2832fb84c2d896c7ba0a")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+46a05a6df9b8dbd5864cd1424cd5dfa3acb84a98")]
 [assembly: System.Reflection.AssemblyProductAttribute("RetakesAllocatorTest")]
 [assembly: System.Reflection.AssemblyTitleAttribute("RetakesAllocatorTest")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
