@@ -7,6 +7,8 @@ namespace GardenRankingsCore.Managers;
 
 public static class HeatmapCollector
 {
+    public static string? ActiveSite { get; set; }
+
     public static void RecordDeath(EventPlayerDeath @event, bool isRanked)
     {
         var victim = @event.Userid;
@@ -51,6 +53,7 @@ public static class HeatmapCollector
                     Weapon = weapon,
                     IsHeadshot = headshot,
                     IsRanked = isRanked,
+                    Site = ActiveSite,
                     CreatedAtUtc = DateTime.UtcNow
                 });
                 db.SaveChanges();

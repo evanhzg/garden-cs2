@@ -65,7 +65,6 @@ public static class LiveMatchBroadcaster
                     Elo = elo
                 };
             })
-            .Where(p => isCr ? p.Team != "Spectator" : true)
             .ToList();
 
         if (players.Count == 0)

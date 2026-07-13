@@ -32,6 +32,7 @@ public class PlayerProfile
 
     public DateTime FirstSeenAtUtc { get; set; }
     public DateTime LastSeenAtUtc { get; set; }
+    public int TimeSpentSeconds { get; set; }
 }
 
 /// <summary>
@@ -347,5 +348,6 @@ public class GardenHeatmap
     [MaxLength(64)] public string Weapon { get; set; } = "";
     public bool IsHeadshot { get; set; }
     public bool IsRanked { get; set; }
+    [MaxLength(16)] public string? Site { get; set; }
     public DateTime CreatedAtUtc { get; set; }
 }

@@ -299,6 +299,9 @@ public class DuelsModule : IGardenModule
             ? (arena.EndA, arena.EndB)
             : (arena.EndB, arena.EndA);
 
+        if (fighterA.Team != CounterStrikeSharp.API.Modules.Utils.CsTeam.CounterTerrorist) fighterA.ChangeTeam(CounterStrikeSharp.API.Modules.Utils.CsTeam.CounterTerrorist);
+        if (fighterB.Team != CounterStrikeSharp.API.Modules.Utils.CsTeam.Terrorist) fighterB.ChangeTeam(CounterStrikeSharp.API.Modules.Utils.CsTeam.Terrorist);
+
         SetupFighter(fighterA, spawnA);
         SetupFighter(fighterB, spawnB);
 

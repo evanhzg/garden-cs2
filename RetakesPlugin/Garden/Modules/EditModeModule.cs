@@ -376,6 +376,22 @@ public class EditModeModule : IGardenModule
             _editors.Remove(player.SteamID);
             player.PrintToCenterHtml(" ");
         }
+        else if ((pressed & (ulong) PlayerButtons.Attack) != 0)
+        {
+            if (state.Category == Category.Retakes)
+            {
+                player.ExecuteClientCommand("play sounds/ui/item_sticker_select.vsnd_c");
+                AddRetakesSpawn(player, state);
+            }
+        }
+        else if ((pressed & (ulong) PlayerButtons.Attack2) != 0)
+        {
+            if (state.Category == Category.Retakes)
+            {
+                player.ExecuteClientCommand("play sounds/ui/csgo_ui_contract_type4.vsnd_c");
+                DeleteNearestSpawn(player, state);
+            }
+        }
     }
 
     private sealed record MenuOption(string Label, Action<CCSPlayerController, EditorState> Action);
@@ -399,7 +415,12 @@ public class EditModeModule : IGardenModule
                 options.Add(new($"Team: {(state.Team == CsTeam.Terrorist ? "T" : "CT")}",
                     (p, s) => s.Team = s.Team == CsTeam.Terrorist ? CsTeam.CounterTerrorist : CsTeam.Terrorist));
                 options.Add(new($"Site: {state.Site}",
-                    (p, s) => s.Site = s.Site == Bombsite.A ? Bombsite.B : Bombsite.A));
+                    (p, s) => {
+                        var sites = Enum.GetValues<Bombsite>();
+                        var idx = Array.IndexOf(sites, s.Site);
+                        s.Site = sites[(idx + 1) % sites.Length];
+                        RenderMarkers(s);
+                    }));
 
                 var allScenarios = _plugin.MapConfigService?.GetSpawnsClone()
                     .SelectMany(sp => sp.Flags)
@@ -580,7 +601,7 @@ public class EditModeModule : IGardenModule
             _plugin.SpawnManager?.CalculateMapSpawns();
             player.PrintToChat($"{Prefix} {_plugin.Localizer["garden.spawn.added",
                 player.PlayerName, state.Team == CsTeam.Terrorist ? "T" : "CT", state.Site.ToString(), ""]}");
-            RenderMarkers(state.Category);
+            RenderMarkers(state);
         }
     }
 
@@ -597,7 +618,7 @@ public class EditModeModule : IGardenModule
         player.PrintToChat($"{Prefix} {_plugin.Localizer[
             nearest.CanBePlanter ? "garden.spawn.flag_on" : "garden.spawn.flag_off",
             "planter", nearest.Team == CsTeam.Terrorist ? "T" : "CT", nearest.Bombsite.ToString()]}");
-        RenderMarkers(state.Category);
+        RenderMarkers(state);
     }
 
     private void ToggleScenarioNearest(CCSPlayerController player, EditorState state)
@@ -633,7 +654,7 @@ public class EditModeModule : IGardenModule
             _plugin.SpawnManager?.CalculateMapSpawns();
             player.PrintToChat($"{Prefix} {_plugin.Localizer["garden.spawn.deleted",
                 player.PlayerName, nearest.Team == CsTeam.Terrorist ? "T" : "CT", nearest.Bombsite.ToString()]}");
-            RenderMarkers(state.Category);
+            RenderMarkers(state);
         }
     }
 
@@ -684,7 +705,7 @@ public class EditModeModule : IGardenModule
 
         player.PrintToChat($"{Prefix} {_plugin.Localizer["garden.duels.arena_end_set",
             isA ? "A" : "B", arena.Name, arena.IsComplete ? "✔" : "…"]}");
-        RenderMarkers(state.Category);
+        RenderMarkers(state);
     }
 
     private void DeleteSelectedArena(CCSPlayerController player, EditorState state)
@@ -700,7 +721,7 @@ public class EditModeModule : IGardenModule
         _duels.SaveArenas();
         state.ArenaIndex = -1;
         player.PrintToChat($"{Prefix} {_plugin.Localizer["garden.duels.arena_deleted", name]}");
-        RenderMarkers(state.Category);
+        RenderMarkers(state);
     }
 
     private void AddStrategyPosition(CCSPlayerController player, EditorState state, bool isT)
@@ -724,7 +745,7 @@ public class EditModeModule : IGardenModule
 
         player.PrintToChat($"{Prefix} {_plugin.Localizer["garden.exec.position_added",
             isT ? "T" : "CT", strategy.Name, strategy.TStarts.Count, strategy.CtSetups.Count]}");
-        RenderMarkers(state.Category);
+        RenderMarkers(state);
     }
 
     private void SaveLastNade(CCSPlayerController player, EditorState state)
@@ -748,7 +769,7 @@ public class EditModeModule : IGardenModule
         player.PrintToChat($"{Prefix} {_plugin.Localizer["garden.exec.nade_added",
             $"{utility.Team} {utility.Type}", strategy.Name, utility.DelaySeconds.ToString("0.0"),
             strategy.Utilities.Count]}");
-        RenderMarkers(state.Category);
+        RenderMarkers(state);
     }
 
     private bool TryGetSelectedNade(EditorState state, out ExecuteStrategy strategy, out int index)
@@ -798,7 +819,7 @@ public class EditModeModule : IGardenModule
             state.NadeIndex = Math.Max(0, strategy.Utilities.Count - 1);
         }
         player.PrintToChat($"{Prefix} Deleted {removed.Team} {removed.Type} nade — {strategy.Utilities.Count} left on {strategy.Name}.");
-        RenderMarkers(state.Category);
+        RenderMarkers(state);
     }
 
     private void DeleteSelectedStrategy(CCSPlayerController player, EditorState state)
@@ -814,7 +835,7 @@ public class EditModeModule : IGardenModule
         _executes.Save();
         state.StrategyIndex = -1;
         player.PrintToChat($"{Prefix} {_plugin.Localizer["garden.exec.deleted", name]}");
-        RenderMarkers(state.Category);
+        RenderMarkers(state);
     }
 
     // ---------- noclip ----------
@@ -834,15 +855,15 @@ public class EditModeModule : IGardenModule
 
     // ---------- markers ----------
 
-    private void RenderMarkers(Category category)
+    private void RenderMarkers(EditorState state)
     {
         ClearMarkers();
         SpawnService.ClearAllSpawnModels();
 
-        switch (category)
+        switch (state.Category)
         {
             case Category.Retakes when _plugin.MapConfigService is not null:
-                SpawnService.ShowAllSpawns(_plugin, _plugin.MapConfigService.GetSpawnsClone());
+                SpawnService.ShowSpawns(_plugin, _plugin.MapConfigService.GetSpawnsClone(), state.Site);
                 break;
 
             case Category.Duels:

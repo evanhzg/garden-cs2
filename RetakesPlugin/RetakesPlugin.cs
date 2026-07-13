@@ -329,7 +329,6 @@ public class RetakesPlugin : BasePlugin, IPluginConfig<BaseConfigs>
     #region Event Handlers
     private HookResult OnPlayerConnectFull(EventPlayerConnectFull @event, GameEventInfo info)
     {
-        if (!RetakesGameplayActive) return HookResult.Continue;
         return _playerEventHandlers?.OnPlayerConnectFull(@event, info) ?? HookResult.Continue;
     }
 

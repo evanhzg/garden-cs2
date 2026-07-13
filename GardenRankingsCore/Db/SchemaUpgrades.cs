@@ -187,5 +187,12 @@ public static class SchemaUpgrades
             // MySQL < 8.0.29 has no IF NOT EXISTS for indexes; a duplicate-index
             // error here just means the index already exists.
         }
+
+        try
+        {
+            db.Database.ExecuteSqlRaw(
+                "ALTER TABLE PlayerProfiles ADD TimeSpentSeconds INT NOT NULL DEFAULT 0");
+        }
+        catch { }
     }
 }

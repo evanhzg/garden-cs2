@@ -41,6 +41,8 @@ public partial class RankingsModule : IGardenModule
     // Hot caches for the game thread (ELO + ranked wins per connected player).
     private readonly Dictionary<ulong, int> _eloCache = new();
     private readonly Dictionary<ulong, int> _rankedWinsCache = new();
+    private readonly Dictionary<ulong, int> _sessionPlaytimeSeconds = new();
+    private int _playtimeMinutesCounter;
 
     private static readonly PluginCapability<IRetakesAllocatorApi> AllocatorApiCapability =
         new(RetakesAllocatorApiCapability.Name);
@@ -110,6 +112,7 @@ public partial class RankingsModule : IGardenModule
         _plugin.AddTimer(1.0f, OnSecondTimer, TimerFlags.REPEAT);
         _plugin.AddTimer(0.5f, OnAfkSampleTimer, TimerFlags.REPEAT);
         _plugin.AddTimer(3.0f, () => LiveMatchBroadcaster.BroadcastAsync(_host.Modes.CurrentMode, _cr, _ranked, _sessionKills, _eloCache), TimerFlags.REPEAT);
+        _plugin.AddTimer(60.0f, OnPlaytimeTimer, TimerFlags.REPEAT);
 
         // Round lifecycle + stat collection events (donor used [GameEventHandler]).
         _plugin.RegisterEventHandler<EventRoundStart>(OnRoundStart);
@@ -142,6 +145,8 @@ public partial class RankingsModule : IGardenModule
         _plugin.AddCommand("css_top", "Shows the season's top rated players.", OnTopCommand);
         _plugin.AddCommand("css_dmg", "Toggles the damage report preview.", OnDmgCommand);
         _plugin.AddCommand("css_damage", "Toggles the damage report preview.", OnDmgCommand);
+        _plugin.AddCommand("css_time", "Shows your time spent on the server.", OnPlaytimeCommand);
+        _plugin.AddCommand("css_playtime", "Shows your time spent on the server.", OnPlaytimeCommand);
 
         // Competitive Retakes.
         _plugin.AddCommand("css_cr", "Start (or stop) a Competitive Retakes match.", OnCrCommand);
@@ -249,6 +254,7 @@ public partial class RankingsModule : IGardenModule
 
     public HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info)
     {
+        HeatmapCollector.ActiveSite = null;
         PrintDamageReports();
         _damageGivenThisRound.Clear();
         return HookResult.Continue;
@@ -664,6 +670,8 @@ public partial class RankingsModule : IGardenModule
 
     public HookResult OnBombPlanted(EventBombPlanted @event, GameEventInfo info)
     {
+        HeatmapCollector.ActiveSite = @event.Site == 0 ? "A" : "B";
+
         if (@event == null! || !_collector.IsCollecting)
         {
             return HookResult.Continue;
@@ -861,6 +869,51 @@ public partial class RankingsModule : IGardenModule
     #endregion
 
     #region Timers
+
+    private void OnPlaytimeTimer()
+    {
+        if (!Configs.IsLoaded()) return;
+
+        var activeSteamIds = new List<ulong>();
+        foreach (var player in Utilities.GetPlayers().Where(Helpers.IsHumanPlayer))
+        {
+            var steamId = Helpers.GetSteamId(player);
+            if (steamId == 0) continue;
+            
+            _sessionPlaytimeSeconds.TryAdd(steamId, 0);
+            _sessionPlaytimeSeconds[steamId] += 60;
+            activeSteamIds.Add(steamId);
+        }
+
+        if (activeSteamIds.Count > 0)
+        {
+            Task.Run(() => Queries.IncrementPlaytime(activeSteamIds, 60));
+        }
+
+        _playtimeMinutesCounter++;
+        if (_playtimeMinutesCounter >= 60)
+        {
+            _playtimeMinutesCounter = 0;
+            Task.Run(() =>
+            {
+                var copy = activeSteamIds.ToList();
+                foreach (var steamId in copy)
+                {
+                    var total = Queries.GetPlaytime(steamId);
+                    Server.NextFrame(() =>
+                    {
+                        var player = Utilities.GetPlayers().FirstOrDefault(p => Helpers.IsHumanPlayer(p) && Helpers.GetSteamId(p) == steamId);
+                        if (player != null)
+                        {
+                            var hours = total / 3600;
+                            var minutes = (total % 3600) / 60;
+                            player.PrintToChat($" {MessagePrefix}\x08You have spent \x04{hours} hours \x08and \x04{minutes} minutes \x08playing on this server!");
+                        }
+                    });
+                }
+            });
+        }
+    }
 
     private void OnSecondTimer()
     {
@@ -1253,6 +1306,27 @@ public partial class RankingsModule : IGardenModule
                         : Translator.Instance["elo.self", placement.Elo, placement.Rank, placement.TotalRanked,
                             seasonName],
                     current.PrintToChat);
+            });
+        });
+    }
+
+    public void OnPlaytimeCommand(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (!Helpers.IsHumanPlayer(player) || !_dbReady) return;
+
+        var steamId = Helpers.GetSteamId(player);
+        Task.Run(() =>
+        {
+            var total = Queries.GetPlaytime(steamId);
+            Server.NextFrame(() =>
+            {
+                var current = Utilities.GetPlayers().FirstOrDefault(p => Helpers.IsHumanPlayer(p) && Helpers.GetSteamId(p) == steamId);
+                if (current != null)
+                {
+                    var hours = total / 3600;
+                    var minutes = (total % 3600) / 60;
+                    current.PrintToChat($" {MessagePrefix}\x08You have spent \x04{hours} hours \x08and \x04{minutes} minutes \x08playing on this server!");
+                }
             });
         });
     }

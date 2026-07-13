@@ -224,6 +224,24 @@ public class Queries
         db.Entry(profile).State = EntityState.Detached;
     }
 
+    public static void IncrementPlaytime(List<ulong> steamIds, int seconds)
+    {
+        if (steamIds.Count == 0) return;
+        
+        using var db = new Db();
+        db.Database.ExecuteSqlRaw(
+            $"UPDATE PlayerProfiles SET TimeSpentSeconds = TimeSpentSeconds + {seconds} WHERE SteamId IN ({string.Join(",", steamIds)})");
+    }
+
+    public static int GetPlaytime(ulong steamId)
+    {
+        using var db = new Db();
+        return db.PlayerProfiles.AsNoTracking()
+            .Where(p => p.SteamId == steamId)
+            .Select(p => p.TimeSpentSeconds)
+            .FirstOrDefault();
+    }
+
     public static PlayerSeasonStats? GetSeasonStats(int seasonId, ulong steamId)
     {
         using var db = new Db();
