@@ -109,9 +109,28 @@ Base editor equivalents still exist: `!showspawns <A|B>`, `!add`, `!remove`, `!n
 
 | Command | Level | Description |
 |---|---|---|
+| `!gmenu` / `!config` / `!gsettings` | Admin | Open the live server-config menu (see below) |
 | `!gconfig` | Admin | List config targets: retakes, garden, allocator, rankings |
 | `!gconfig <target> [path]` | Admin | Browse a config (e.g. `!gconfig rankings ranked`) |
 | `!gconfig <target> <path> <value>` | Owner | Set a value — live apply + saved to the JSON (e.g. `!gconfig rankings ranked.minplayers 4`) |
+
+### `!gmenu` — live server-config menu
+
+One in-game menu (WASD to move, E to toggle, native center menu) for the settings admins flip most. Every toggle applies live, saves to disk, and **stays consistent across map changes** — the cvar toggles are re-applied on each map start, and the round-economy / ranked / scramble toggles are written into the allocator & rankings configs those systems already read every map.
+
+| Setting | Options | Backing |
+|---|---|---|
+| Friendly Fire (TK) | ON / OFF | `mp_friendlyfire` |
+| Force Camera | Free / Team-only | `mp_forcecamera` |
+| Freeze Time | 0 / 2 / 5 / 7 / 10 / 15 s | `mp_freezetime` |
+| Round Time | 1.15 / 1.92 / 3 / 5 min | `mp_roundtime[_defuse]` |
+| Buy Anywhere | ON / OFF | `mp_buy_anywhere` |
+| Infinite Ammo | ON / OFF | `sv_infinite_ammo` |
+| Half-Buy Frequency | Off / Rare / Normal / Frequent | allocator `RoundTypePercentages` |
+| Pistol Frequency | None / Rare / Normal / Often | allocator `RoundTypePercentages` |
+| Auto-Ranked | ON / OFF | rankings `Ranked.AutoActivate` |
+| Scramble Each Round | ON / OFF | rankings `ModeCvars.ScrambleTeamsEachRound` |
+| Competitive (2v2/3v3) | ON / OFF | rankings `Competitive.AllowedTeamSizes` |
 | `!season_new [name]` | root | Start a new season (archives the old one) |
 | `!seasons` | root | List all seasons |
 | `!rankings_reload_config` | root | Reload `config/rankings.json` |

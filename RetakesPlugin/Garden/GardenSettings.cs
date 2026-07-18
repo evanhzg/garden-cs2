@@ -44,6 +44,46 @@ public class GardenSettings
 
     [JsonPropertyName("Spotlight")]
     public SpotlightSettings Spotlight { get; set; } = new();
+
+    [JsonPropertyName("ServerControl")]
+    public ServerControlSettings ServerControl { get; set; } = new();
+}
+
+/// <summary>
+/// Live server-tuning toggles exposed through the <c>!gmenu</c> config menu.
+/// These cvar-backed values are the source of truth and are re-applied on every
+/// map start (so a setup stays consistent across map changes — a plain cvar set
+/// in console would reset). Half-buy / ranked / scramble toggles live in the
+/// allocator + rankings configs and are edited straight there by the menu.
+/// </summary>
+public class ServerControlSettings
+{
+    [JsonPropertyName("Enabled")]
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>mp_friendlyfire — team damage (TK) on/off.</summary>
+    [JsonPropertyName("FriendlyFire")]
+    public bool FriendlyFire { get; set; } = true;
+
+    /// <summary>mp_forcecamera — true locks dead players to team-only spectating.</summary>
+    [JsonPropertyName("ForceCamera")]
+    public bool ForceCamera { get; set; } = false;
+
+    /// <summary>mp_freezetime (seconds).</summary>
+    [JsonPropertyName("FreezeTime")]
+    public int FreezeTime { get; set; } = 2;
+
+    /// <summary>mp_roundtime_defuse (minutes).</summary>
+    [JsonPropertyName("RoundTimeMinutes")]
+    public double RoundTimeMinutes { get; set; } = 1.92;
+
+    /// <summary>mp_buy_anywhere — buy from anywhere on the map.</summary>
+    [JsonPropertyName("BuyAnywhere")]
+    public bool BuyAnywhere { get; set; } = false;
+
+    /// <summary>sv_infinite_ammo — 0 off, 2 infinite reserve (fun toggle).</summary>
+    [JsonPropertyName("InfiniteAmmo")]
+    public bool InfiniteAmmo { get; set; } = false;
 }
 
 /// <summary>
