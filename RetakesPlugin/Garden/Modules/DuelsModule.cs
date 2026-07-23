@@ -33,7 +33,7 @@ public class DuelsModule : IGardenModule
     private readonly DuelManager _manager = new();
     private readonly DuelArenaStore _arenaStore = new();
 
-    private sealed record RuntimeArena(string Name, Spawn EndA, Spawn EndB);
+    private sealed record RuntimeArena(string Name, List<Spawn> SpawnsA, List<Spawn> SpawnsB);
 
     private List<RuntimeArena> _arenas = [];
     private string _mapName = "";
@@ -42,8 +42,19 @@ public class DuelsModule : IGardenModule
     private readonly Dictionary<int, int> _laneArena = new();
     private readonly Dictionary<int, (ulong A, ulong B)> _lastPairs = new();
 
+    // Player -> Last used weapon
+    private readonly Dictionary<ulong, string> _lastWeapons = new();
+
     // R10: per-arena stats — arena name -> (steamid -> wins there).
     private readonly Dictionary<string, Dictionary<ulong, int>> _arenaWins = new();
+
+    // Session tracking (persists across map changes if reconnect < 10 mins)
+    public class PlayerSession
+    {
+        public DateTime LastSeen { get; set; } = DateTime.UtcNow;
+        public Dictionary<ulong, int> KillsAgainst { get; set; } = new();
+    }
+    private Dictionary<ulong, PlayerSession> _sessions = new();
 
     // Pending challenge invites: target -> (challenger, firstTo, deadline).
     private readonly Dictionary<ulong, (ulong Challenger, int? FirstTo, DateTime DeadlineUtc)> _invites = new();
@@ -92,11 +103,48 @@ public class DuelsModule : IGardenModule
         _lastPairs.Clear();
         _invites.Clear();
         LoadArenaStore();
+        LoadSessions();
     }
 
     public void Unload()
     {
+        SaveSessions();
         _host.Modes.ModeChanged -= OnModeChanged;
+    }
+
+    // ---------- session data ----------
+
+    private string SessionsPath => Path.Combine(_plugin.ModuleDirectory, "duels", "sessions.json");
+
+    private void LoadSessions()
+    {
+        try
+        {
+            if (File.Exists(SessionsPath))
+            {
+                _sessions = System.Text.Json.JsonSerializer.Deserialize<Dictionary<ulong, PlayerSession>>(File.ReadAllText(SessionsPath)) ?? new();
+            }
+            var now = DateTime.UtcNow;
+            var toRemove = _sessions.Where(kv => (now - kv.Value.LastSeen).TotalMinutes > 10).Select(kv => kv.Key).ToList();
+            foreach (var key in toRemove) _sessions.Remove(key);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError("Garden/Duels", $"Failed to load {SessionsPath}: {ex.Message}");
+        }
+    }
+
+    private void SaveSessions()
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(SessionsPath)!);
+            File.WriteAllText(SessionsPath, System.Text.Json.JsonSerializer.Serialize(_sessions));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError("Garden/Duels", $"Failed to save {SessionsPath}: {ex.Message}");
+        }
     }
 
     // ---------- arena data ----------
@@ -137,7 +185,10 @@ public class DuelsModule : IGardenModule
     private void BuildArenas()
     {
         _arenas = _arenaStore.Complete
-            .Select(a => new RuntimeArena(a.Name, ToSpawn(a.EndA!), ToSpawn(a.EndB!)))
+            .Select(a => new RuntimeArena(
+                a.Name,
+                a.SpawnsA.Select(ToSpawn).ToList(),
+                a.SpawnsB.Select(ToSpawn).ToList()))
             .ToList();
 
         if (_arenas.Count > 0)
@@ -155,7 +206,7 @@ public class DuelsModule : IGardenModule
 
         _arenas = DuelArenas.BuildArenas(arenaSpawns, _host.Settings.Duels.MaxPairDistance)
             .Select((pair, i) => new RuntimeArena($"Arena {i + 1}",
-                duelSpawns[pair.SpawnIdA], duelSpawns[pair.SpawnIdB]))
+                [duelSpawns[pair.SpawnIdA]], [duelSpawns[pair.SpawnIdB]]))
             .ToList();
     }
 
@@ -199,6 +250,10 @@ public class DuelsModule : IGardenModule
         {
             Server.ExecuteCommand(command);
         }
+        
+        Server.ExecuteCommand("mp_death_drop_gun 0");
+        Server.ExecuteCommand("mp_death_drop_grenade 0");
+        Server.ExecuteCommand("mp_death_drop_defuser 0");
 
         Server.PrintToChatAll($"{Prefix} {_plugin.Localizer["garden.duels.started", _arenas.Count]}");
         Logger.LogInfo("Garden/Duels", $"Duels started: {_arenas.Count} arenas, {_manager.MaxLanes} lanes max.");
@@ -212,6 +267,10 @@ public class DuelsModule : IGardenModule
         {
             Server.ExecuteCommand(command);
         }
+        
+        Server.ExecuteCommand("mp_death_drop_gun 1");
+        Server.ExecuteCommand("mp_death_drop_grenade 1");
+        Server.ExecuteCommand("mp_death_drop_defuser 1");
 
         Server.PrintToChatAll($"{Prefix} {_plugin.Localizer["garden.duels.stopped"]}");
     }
@@ -295,15 +354,22 @@ public class DuelsModule : IGardenModule
         var arenaIndex = PickArenaFor(lane);
         var arena = _arenas[arenaIndex];
 
-        var (spawnA, spawnB) = _random.Next(2) == 0
-            ? (arena.EndA, arena.EndB)
-            : (arena.EndB, arena.EndA);
+        var spawnA = arena.SpawnsA[_random.Next(arena.SpawnsA.Count)];
+        var spawnB = arena.SpawnsB[_random.Next(arena.SpawnsB.Count)];
+
+        if (_random.Next(2) == 0)
+        {
+            (spawnA, spawnB) = (spawnB, spawnA);
+        }
 
         if (fighterA.Team != CounterStrikeSharp.API.Modules.Utils.CsTeam.CounterTerrorist) fighterA.ChangeTeam(CounterStrikeSharp.API.Modules.Utils.CsTeam.CounterTerrorist);
         if (fighterB.Team != CounterStrikeSharp.API.Modules.Utils.CsTeam.Terrorist) fighterB.ChangeTeam(CounterStrikeSharp.API.Modules.Utils.CsTeam.Terrorist);
 
-        SetupFighter(fighterA, spawnA);
-        SetupFighter(fighterB, spawnB);
+        Server.NextFrame(() =>
+        {
+            SetupFighter(fighterA, spawnA);
+            SetupFighter(fighterB, spawnB);
+        });
 
         // R10: point dead/queued players at the action.
         _plugin.AddTimer(0.5f, () => AutoSpectate(fighterA));
@@ -327,11 +393,6 @@ public class DuelsModule : IGardenModule
     /// </summary>
     private int PickArenaFor(DuelLane lane)
     {
-        if (_laneArena.TryGetValue(lane.Id, out var current) && lane.IsChallenge)
-        {
-            return current;
-        }
-
         var used = _laneArena.Where(kv => kv.Key != lane.Id).Select(kv => kv.Value).ToHashSet();
         var free = Enumerable.Range(0, _arenas.Count).Where(i => !used.Contains(i)).ToList();
         if (free.Count == 0)
@@ -413,15 +474,19 @@ public class DuelsModule : IGardenModule
             Utilities.SetStateChanged(pawn, "CBaseEntity", "m_iHealth");
 
             RetakesAllocator.Helpers.RemoveWeapons(player);
-            foreach (var weapon in _host.Settings.Duels.Weapons)
+            
+            _plugin.AddTimer(0.15f, () =>
             {
-                player.GiveNamedItem(weapon);
-            }
+                if (!PlayerHelper.HasAlivePawn(player)) return;
 
-            if (_host.Settings.Duels.GiveKevlarHelmet)
-            {
-                player.GiveNamedItem("item_assaultsuit");
-            }
+                var weapon = _lastWeapons.TryGetValue(player.SteamID, out var w) ? w : "weapon_ak47";
+                player.GiveNamedItem(weapon);
+
+                if (_host.Settings.Duels.GiveKevlarHelmet)
+                {
+                    player.GiveNamedItem("item_assaultsuit");
+                }
+            });
         });
     }
 
@@ -430,6 +495,27 @@ public class DuelsModule : IGardenModule
         if (!IsActive || @event.Userid is null)
         {
             return HookResult.Continue;
+        }
+
+        var victim = @event.Userid;
+        var attacker = @event.Attacker;
+
+        if (victim != null && victim.PlayerPawn.Value != null)
+        {
+            var victimWeapon = victim.PlayerPawn.Value.WeaponServices?.ActiveWeapon.Value?.DesignerName;
+            if (victimWeapon != null && !victimWeapon.Contains("knife") && !victimWeapon.Contains("bayonet"))
+            {
+                _lastWeapons[victim.SteamID] = victimWeapon;
+            }
+        }
+
+        if (attacker != null && attacker.PlayerPawn.Value != null)
+        {
+            var attackerWeapon = attacker.PlayerPawn.Value.WeaponServices?.ActiveWeapon.Value?.DesignerName;
+            if (attackerWeapon != null && !attackerWeapon.Contains("knife") && !attackerWeapon.Contains("bayonet"))
+            {
+                _lastWeapons[attacker.SteamID] = attackerWeapon;
+            }
         }
 
         var result = _manager.OnDeath(@event.Userid.SteamID);
@@ -454,6 +540,25 @@ public class DuelsModule : IGardenModule
             arenaBoard[result.WinnerId] = arenaBoard.GetValueOrDefault(result.WinnerId) + 1;
         }
 
+        // Update session kills
+        if (!_sessions.TryGetValue(result.WinnerId, out var winnerSession))
+        {
+            winnerSession = _sessions[result.WinnerId] = new PlayerSession();
+        }
+        if (!_sessions.TryGetValue(result.LoserId, out var loserSession))
+        {
+            loserSession = _sessions[result.LoserId] = new PlayerSession();
+        }
+        
+        winnerSession.LastSeen = DateTime.UtcNow;
+        loserSession.LastSeen = DateTime.UtcNow;
+        
+        winnerSession.KillsAgainst[result.LoserId] = winnerSession.KillsAgainst.GetValueOrDefault(result.LoserId) + 1;
+        var killsA = winnerSession.KillsAgainst[result.LoserId];
+        var killsB = loserSession.KillsAgainst.GetValueOrDefault(result.WinnerId);
+
+        SaveSessions();
+
         var winnerName = FindBySteamId(result.WinnerId)?.PlayerName ?? "?";
         var loserName = FindBySteamId(result.LoserId)?.PlayerName ?? "?";
 
@@ -468,14 +573,12 @@ public class DuelsModule : IGardenModule
             }
             else
             {
-                Server.PrintToChatAll($"{Prefix} {_plugin.Localizer["garden.duels.challenge_score",
-                    winnerName, result.Lane.ScoreLine]}");
+                Server.PrintToChatAll($"{Prefix} \x04{winnerName}\x01 killed \x02{loserName}\x01 [\x04{killsA}\x01 : \x02{killsB}\x01]");
             }
         }
         else
         {
-            Server.PrintToChatAll($"{Prefix} {_plugin.Localizer["garden.duels.won",
-                winnerName, _manager.Wins.GetValueOrDefault(result.WinnerId)]}");
+            Server.PrintToChatAll($"{Prefix} \x04{winnerName}\x01 killed \x02{loserName}\x01 [\x04{killsA}\x01 : \x02{killsB}\x01]");
         }
 
         _plugin.AddTimer(1.0f, SyncLanes);
@@ -536,6 +639,12 @@ public class DuelsModule : IGardenModule
             }
 
             _manager.AddPlayer(player.SteamID);
+            
+            if (_sessions.TryGetValue(player.SteamID, out var session))
+            {
+                session.LastSeen = DateTime.UtcNow;
+            }
+            
             player.PrintToChat($"{Prefix} {_plugin.Localizer["garden.duels.queued",
                 _manager.Queue.Count]}");
             SyncLanes();
@@ -556,6 +665,12 @@ public class DuelsModule : IGardenModule
         if (lane is { IsChallenge: true })
         {
             Server.PrintToChatAll($"{Prefix} {_plugin.Localizer["garden.duels.challenge_cancelled"]}");
+        }
+
+        if (_sessions.TryGetValue(steamId, out var session))
+        {
+            session.LastSeen = DateTime.UtcNow;
+            SaveSessions();
         }
 
         _manager.RemovePlayer(steamId);
@@ -719,7 +834,7 @@ public class DuelsModule : IGardenModule
                 var here = HereOrNull();
                 if (here is not null)
                 {
-                    _arenaStore.Find(name)!.EndA = here;
+                    _arenaStore.Find(name)!.SpawnsA.Add(here);
                 }
 
                 SaveArenaStore();
@@ -741,11 +856,25 @@ public class DuelsModule : IGardenModule
                     return;
                 }
 
-                if (action == "seta") arena.EndA = here;
-                else arena.EndB = here;
+                if (action == "seta") arena.SpawnsA.Add(here);
+                else arena.SpawnsB.Add(here);
                 SaveArenaStore();
                 info.ReplyToCommand($"{Prefix} {_plugin.Localizer["garden.duels.arena_end_set",
                     action == "seta" ? "A" : "B", name, arena.IsComplete ? "✔" : "…"]}");
+                return;
+            }
+            case "clear":
+            {
+                var arena = _arenaStore.Find(name);
+                if (arena is null)
+                {
+                    info.ReplyToCommand($"{Prefix} {_plugin.Localizer["garden.duels.arena_not_found", name]}");
+                    return;
+                }
+                arena.SpawnsA.Clear();
+                arena.SpawnsB.Clear();
+                SaveArenaStore();
+                info.ReplyToCommand($"{Prefix} {_plugin.Localizer["garden.duels.arena_cleared", name]}");
                 return;
             }
             case "del":

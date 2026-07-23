@@ -93,7 +93,7 @@ public partial class RankingsModule
             var target = i < tCount ? CsTeam.Terrorist : CsTeam.CounterTerrorist;
             if (shuffled[i].Team != target)
             {
-                shuffled[i].SwitchTeam(target);
+                shuffled[i].ChangeTeam(target);
             }
         }
     }
@@ -122,11 +122,6 @@ public partial class RankingsModule
         {
             PrepareClutchRound(teamHumans);
         }
-        else if (Configs.GetConfigData().ModeCvars.ScrambleTeamsEachRound && !_crSetupActive)
-        {
-            // Never shuffle the sides mid CR-setup: players are arranging teams.
-            _plugin.AddTimer(0.2f, ScrambleTeamsForNextRound);
-        }
     }
 
     #endregion
@@ -153,16 +148,16 @@ public partial class RankingsModule
 
             if (i < layout.ClutcherCount)
             {
-                assignments[steamId] = clutchSide;
+                if (shuffled[i].Team != clutchSide) shuffled[i].ChangeTeam(clutchSide);
                 clutcherNames.Add(shuffled[i].PlayerName);
             }
             else
             {
-                assignments[steamId] = enemySide;
+                if (shuffled[i].Team != enemySide) shuffled[i].ChangeTeam(enemySide);
             }
         }
 
-        _pendingClutchTeams = assignments;
+        _plugin.SuspendTeamManagement = true;
         _pendingClutchAnnouncement = Translator.Instance[
             "clutch.announce",
             string.Join(", ", clutcherNames),
@@ -175,15 +170,13 @@ public partial class RankingsModule
     }
 
     /// <summary>
-    /// Team enforcement for clutch rounds and CR.
+    /// Team enforcement for CR matches.
     ///
     /// IMPORTANT — hook choice: the retakes core rebalances teams to its
-    /// terrorist ratio in a Post hook on round_prestart, and Post-hook ordering
-    /// on the SAME event is registration-order dependent. round_poststart PRE
+    /// terrorist ratio in a Post hook on round_prestart. round_poststart PRE
     /// is deterministic: it fires after every round_prestart handler (the
     /// balancer) and before the Post round_poststart handler that allocates
-    /// spawns — so spawns are assigned with our teams already applied.
-    /// (Registered in RankingsModule.Load with HookMode.Pre.)
+    /// spawns. (Registered in RankingsModule.Load with HookMode.Pre.)
     /// </summary>
     public HookResult OnRoundPoststartPre(EventRoundPoststart @event, GameEventInfo info)
     {
@@ -196,23 +189,6 @@ public partial class RankingsModule
         if (_cr.IsLive)
         {
             EnforceCrSides();
-            return HookResult.Continue;
-        }
-
-        if (_pendingClutchTeams is null)
-        {
-            return HookResult.Continue;
-        }
-
-        foreach (var player in Helpers.GetTeamHumanPlayers())
-        {
-            var steamId = Helpers.GetSteamId(player);
-            if (steamId != 0 &&
-                _pendingClutchTeams.TryGetValue(steamId, out var team) &&
-                player.Team != team)
-            {
-                player.SwitchTeam(team);
-            }
         }
 
         return HookResult.Continue;
@@ -223,6 +199,12 @@ public partial class RankingsModule
         if (_pendingClutchAnnouncement is not null)
         {
             Helpers.PrintToAll(_pendingClutchAnnouncement);
+            
+            // If CR is not live, we resume team management so the round after clutch works normally
+            if (!_cr.IsLive)
+            {
+                _plugin.SuspendTeamManagement = false;
+            }
         }
 
         _pendingClutchAnnouncement = null;

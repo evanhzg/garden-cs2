@@ -111,6 +111,7 @@ public class EditModeModule : IGardenModule
         _plugin.AddCommand("css_name", "Answer a pending editor name prompt.", OnNameCommand);
         _plugin.AddCommand("css_ghost", "Enter admin freecam (Spectator).", OnGhostCommand);
         _plugin.AddCommand("css_freecam", "Enter admin freecam (Spectator).", OnGhostCommand);
+        _plugin.AddCommandListener("drop", OnDropCommand);
     }
 
     public void OnMapStart(string mapName)
@@ -144,6 +145,7 @@ public class EditModeModule : IGardenModule
         Server.ExecuteCommand("mp_warmup_pausetimer 1");
         Server.ExecuteCommand("mp_warmuptime 999999");
         Server.ExecuteCommand("mp_death_drop_c4 0");
+        Server.ExecuteCommand("sv_cheats 1");
         Server.ExecuteCommand("mp_warmup_start");
 
         _executes.CaptureAllThrows = true;
@@ -173,6 +175,7 @@ public class EditModeModule : IGardenModule
 
         Server.ExecuteCommand("mp_death_drop_c4 1");
         Server.ExecuteCommand("mp_warmup_pausetimer 0");
+        Server.ExecuteCommand("sv_cheats 0");
         Server.ExecuteCommand("mp_warmup_end");
         Server.ExecuteCommand("mp_restartgame 1");
         Server.PrintToChatAll($"{Prefix} {_plugin.Localizer["garden.edit.stopped"]}");
@@ -304,6 +307,17 @@ public class EditModeModule : IGardenModule
         return null;
     }
 
+    private HookResult OnDropCommand(CCSPlayerController? player, CommandInfo info)
+    {
+        if (player is not null && _editors.TryGetValue(player.SteamID, out var state))
+        {
+            player.ExecuteClientCommand("play sounds/ui/csgo_ui_contract_type4.vsnd_c");
+            DeleteNearestContext(player, state);
+            return HookResult.Stop; // Prevent actually dropping
+        }
+        return HookResult.Continue;
+    }
+
     // ---------- tick: input + render ----------
 
     private void EnsureTick()
@@ -392,6 +406,11 @@ public class EditModeModule : IGardenModule
                 DeleteNearestSpawn(player, state);
             }
         }
+        else if ((pressed & (ulong) PlayerButtons.Duck) != 0)
+        {
+            player.ExecuteClientCommand("play sounds/ui/item_sticker_select.vsnd_c");
+            CycleContext(player, state);
+        }
     }
 
     private sealed record MenuOption(string Label, Action<CCSPlayerController, EditorState> Action);
@@ -468,8 +487,8 @@ public class EditModeModule : IGardenModule
                     s.Prompt = Prompt.NewArena;
                     p.PrintToChat($"{Prefix} {_plugin.Localizer["garden.edit.arena_name_usage"]}");
                 }));
-                options.Add(new("➕ Set End A here", (p, s) => SetArenaEnd(p, s, isA: true)));
-                options.Add(new("➕ Set End B here", (p, s) => SetArenaEnd(p, s, isA: false)));
+                options.Add(new("➕ Add Spawn A here", (p, s) => AddArenaSpawn(p, s, isA: true)));
+                options.Add(new("➕ Add Spawn B here", (p, s) => AddArenaSpawn(p, s, isA: false)));
                 options.Add(new("🗑 Delete selected arena", DeleteSelectedArena));
                 break;
             }
@@ -658,6 +677,148 @@ public class EditModeModule : IGardenModule
         }
     }
 
+    private void CycleContext(CCSPlayerController player, EditorState state)
+    {
+        switch (state.Category)
+        {
+            case Category.Retakes:
+                var sites = Enum.GetValues<Bombsite>();
+                var idx = Array.IndexOf(sites, state.Site);
+                state.Site = sites[(idx + 1) % sites.Length];
+                RenderMarkers(state);
+                player.PrintToChat($"{Prefix} Switched site to {state.Site}");
+                break;
+            case Category.Duels:
+                var arenas = _duels.ArenaStore.Arenas;
+                if (arenas.Count > 0)
+                {
+                    state.ArenaIndex = (state.ArenaIndex + 1) % arenas.Count;
+                    RenderMarkers(state);
+                    player.PrintToChat($"{Prefix} Switched arena to {arenas[state.ArenaIndex].Name}");
+                }
+                break;
+            case Category.Executes:
+                var strategies = _executes.Store.Strategies;
+                if (strategies.Count > 0)
+                {
+                    state.StrategyIndex = (state.StrategyIndex + 1) % strategies.Count;
+                    state.NadeIndex = 0;
+                    RenderMarkers(state);
+                    player.PrintToChat($"{Prefix} Switched strategy to {strategies[state.StrategyIndex].Name}");
+                }
+                break;
+        }
+    }
+
+    private void DeleteNearestContext(CCSPlayerController player, EditorState state)
+    {
+        switch (state.Category)
+        {
+            case Category.Retakes:
+                DeleteNearestSpawn(player, state);
+                break;
+            case Category.Duels:
+                DeleteNearestArenaSpawn(player, state);
+                break;
+            case Category.Executes:
+                DeleteNearestExecutePosition(player, state);
+                break;
+        }
+    }
+
+    private void DeleteNearestArenaSpawn(CCSPlayerController player, EditorState state)
+    {
+        var arenas = _duels.ArenaStore.Arenas;
+        if (state.ArenaIndex < 0 || state.ArenaIndex >= arenas.Count) return;
+        var arena = arenas[state.ArenaIndex];
+        
+        var pawn = GetValidPawn(player);
+        if (pawn is null) return;
+        var origin = pawn.AbsOrigin!;
+
+        double bestDist = 300.0;
+        ExecutePosition? nearest = null;
+        bool isA = true;
+
+        foreach (var pos in arena.SpawnsA)
+        {
+            var d = GameRulesHelper.GetDistanceBetweenVectors(new Vector(pos.X, pos.Y, pos.Z), origin);
+            if (d < bestDist) { bestDist = d; nearest = pos; isA = true; }
+        }
+        foreach (var pos in arena.SpawnsB)
+        {
+            var d = GameRulesHelper.GetDistanceBetweenVectors(new Vector(pos.X, pos.Y, pos.Z), origin);
+            if (d < bestDist) { bestDist = d; nearest = pos; isA = false; }
+        }
+
+        // Check legacy as well just in case they aren't fully migrated yet
+        if (arena.EndA is not null)
+        {
+            var d = GameRulesHelper.GetDistanceBetweenVectors(new Vector(arena.EndA.X, arena.EndA.Y, arena.EndA.Z), origin);
+            if (d < bestDist) { bestDist = d; nearest = arena.EndA; isA = true; }
+        }
+        if (arena.EndB is not null)
+        {
+            var d = GameRulesHelper.GetDistanceBetweenVectors(new Vector(arena.EndB.X, arena.EndB.Y, arena.EndB.Z), origin);
+            if (d < bestDist) { bestDist = d; nearest = arena.EndB; isA = false; }
+        }
+
+        if (nearest is not null)
+        {
+            if (nearest == arena.EndA) arena.EndA = null;
+            else if (nearest == arena.EndB) arena.EndB = null;
+            else if (isA) arena.SpawnsA.Remove(nearest);
+            else arena.SpawnsB.Remove(nearest);
+            
+            _duels.SaveArenas();
+            player.PrintToChat($"{Prefix} Deleted spawn {(isA ? "A" : "B")} from {arena.Name}.");
+            RenderMarkers(state);
+        }
+        else
+        {
+            player.PrintToChat($"{Prefix} No spawn close enough to delete.");
+        }
+    }
+
+    private void DeleteNearestExecutePosition(CCSPlayerController player, EditorState state)
+    {
+        var strats = _executes.Store.Strategies;
+        if (state.StrategyIndex < 0 || state.StrategyIndex >= strats.Count) return;
+        var strat = strats[state.StrategyIndex];
+        
+        var pawn = GetValidPawn(player);
+        if (pawn is null) return;
+        var origin = pawn.AbsOrigin!;
+
+        double bestDist = 300.0;
+        ExecutePosition? nearest = null;
+        bool isT = true;
+
+        foreach (var pos in strat.TStarts)
+        {
+            var d = GameRulesHelper.GetDistanceBetweenVectors(new Vector(pos.X, pos.Y, pos.Z), origin);
+            if (d < bestDist) { bestDist = d; nearest = pos; isT = true; }
+        }
+        foreach (var pos in strat.CtSetups)
+        {
+            var d = GameRulesHelper.GetDistanceBetweenVectors(new Vector(pos.X, pos.Y, pos.Z), origin);
+            if (d < bestDist) { bestDist = d; nearest = pos; isT = false; }
+        }
+
+        if (nearest is not null)
+        {
+            if (isT) strat.TStarts.Remove(nearest);
+            else strat.CtSetups.Remove(nearest);
+            _executes.Save();
+            player.PrintToChat($"{Prefix} Deleted {(isT ? "T start" : "CT setup")} from {strat.Name}.");
+            RenderMarkers(state);
+        }
+        else
+        {
+            player.PrintToChat($"{Prefix} No position close enough to delete.");
+        }
+    }
+
     private Spawn? FindNearestSpawn(CCSPlayerController player)
     {
         var pawn = GetValidPawn(player);
@@ -682,7 +843,7 @@ public class EditModeModule : IGardenModule
         return nearest;
     }
 
-    private void SetArenaEnd(CCSPlayerController player, EditorState state, bool isA)
+    private void AddArenaSpawn(CCSPlayerController player, EditorState state, bool isA)
     {
         var arenas = _duels.ArenaStore.Arenas;
         var pawn = GetValidPawn(player);
@@ -699,12 +860,11 @@ public class EditModeModule : IGardenModule
         };
 
         var arena = arenas[state.ArenaIndex];
-        if (isA) arena.EndA = position;
-        else arena.EndB = position;
+        if (isA) arena.SpawnsA.Add(position);
+        else arena.SpawnsB.Add(position);
         _duels.SaveArenas();
 
-        player.PrintToChat($"{Prefix} {_plugin.Localizer["garden.duels.arena_end_set",
-            isA ? "A" : "B", arena.Name, arena.IsComplete ? "✔" : "…"]}");
+        player.PrintToChat($"{Prefix} Added spawn to {arena.Name} End {(isA ? "A" : "B")}.");
         RenderMarkers(state);
     }
 
@@ -863,25 +1023,38 @@ public class EditModeModule : IGardenModule
         switch (state.Category)
         {
             case Category.Retakes when _plugin.MapConfigService is not null:
-                SpawnService.ShowSpawns(_plugin, _plugin.MapConfigService.GetSpawnsClone(), state.Site);
+                var filteredSpawns = _plugin.MapConfigService.GetSpawnsClone()
+                    .Where(s => s.Bombsite == state.Site && 
+                                (string.IsNullOrEmpty(state.ActiveScenario) 
+                                    ? s.Flags.Count == 0 || s.Flags.All(f => !f.StartsWith("scenario:", StringComparison.OrdinalIgnoreCase))
+                                    : s.Flags.Contains(state.ActiveScenario, StringComparer.OrdinalIgnoreCase)))
+                    .ToList();
+                SpawnService.ShowSpawns(_plugin, filteredSpawns, state.Site);
                 break;
 
             case Category.Duels:
-                foreach (var arena in _duels.ArenaStore.Arenas)
+                if (state.ArenaIndex >= 0 && state.ArenaIndex < _duels.ArenaStore.Arenas.Count)
                 {
+                    var arena = _duels.ArenaStore.Arenas[state.ArenaIndex];
+                    foreach (var position in arena.SpawnsA)
+                        CreateMarker(position, Color.MediumPurple, $"🏟 {arena.Name}\nSpawn A");
+                    foreach (var position in arena.SpawnsB)
+                        CreateMarker(position, Color.Magenta, $"🏟 {arena.Name}\nSpawn B");
+                    
+                    // Legacy markers
                     if (arena.EndA is not null)
                         CreateMarker(arena.EndA, Color.MediumPurple, $"🏟 {arena.Name}\nEnd A");
                     if (arena.EndB is not null)
                         CreateMarker(arena.EndB, Color.Magenta, $"🏟 {arena.Name}\nEnd B");
                 }
-
                 break;
 
             case Category.Executes:
             {
                 var strategies = _executes.Store.Strategies;
-                foreach (var strategy in strategies)
+                if (state.StrategyIndex >= 0 && state.StrategyIndex < strategies.Count)
                 {
+                    var strategy = strategies[state.StrategyIndex];
                     foreach (var position in strategy.TStarts)
                         CreateMarker(position, Color.Orange, $"⚔ {strategy.Name}\nT start");
                     foreach (var position in strategy.CtSetups)
@@ -890,7 +1063,6 @@ public class EditModeModule : IGardenModule
                         CreateLabel(new Vector(utility.X, utility.Y, utility.Z + 24f), Color.LimeGreen,
                             $"💨 {strategy.Name}\n{utility.Team} {utility.Type} +{utility.DelaySeconds:0.0}s");
                 }
-
                 break;
             }
         }

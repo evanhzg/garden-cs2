@@ -292,6 +292,7 @@ public class RetakesPlugin : BasePlugin, IPluginConfig<BaseConfigs>
         AddCommand("css_scramble", "Sets teams to scramble on the next round.", _scrambleCommand.OnCommand);
         AddCommand("css_scrambleteams", "Sets teams to scramble on the next round.", _scrambleCommand.OnCommand);
         AddCommand("css_debugqueues", "Prints the state of the queues to the console.", _debugQueuesCommand.OnCommand);
+        AddCommand("css_gscr", "Toggles auto team scramble every round.", OnAutoScrambleCommand);
 
         // Map Config Commands
         AddCommand("css_mapconfig", "Forces a specific map config file to load.", _mapConfigCommand.OnCommand);
@@ -432,6 +433,22 @@ public class RetakesPlugin : BasePlugin, IPluginConfig<BaseConfigs>
         }
 
         return response;
+    }
+
+    private void OnAutoScrambleCommand(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (player != null && !CounterStrikeSharp.API.Modules.Admin.AdminManager.PlayerHasPermissions(player, "@css/root"))
+        {
+            commandInfo.ReplyToCommand($"{Localizer["retakes.prefix"]} You don't have permission to use this command.");
+            return;
+        }
+
+        if (_gameManager != null)
+        {
+            _gameManager.AutoScrambleEveryRound = !_gameManager.AutoScrambleEveryRound;
+            var status = _gameManager.AutoScrambleEveryRound ? "enabled" : "disabled";
+            Server.PrintToChatAll($"{Localizer["retakes.prefix"]} Auto team scramble every round is now \x04{status}\x01.");
+        }
     }
     #endregion
 

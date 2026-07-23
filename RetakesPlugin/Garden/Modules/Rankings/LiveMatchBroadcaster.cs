@@ -20,9 +20,11 @@ public static class LiveMatchBroadcaster
         if (_isBroadcasting) return;
         _isBroadcasting = true;
 
-        var mapName = Server.MapName;
-        var isCr = mode == GameModeKind.Retakes && cr.IsLive;
-        var isRanked = mode == GameModeKind.Retakes && ranked.IsActive;
+        try
+        {
+            var mapName = Server.MapName;
+            var isCr = mode == GameModeKind.Retakes && cr.IsLive;
+            var isRanked = mode == GameModeKind.Retakes && ranked.IsActive;
 
         var modeName = mode switch
         {
@@ -33,6 +35,11 @@ public static class LiveMatchBroadcaster
             GameModeKind.Edit => "Editor",
             _ => mode.ToString()
         };
+
+        if (Helpers.IsWarmup())
+        {
+            modeName = "Warmup";
+        }
 
         var teamAKey = cr.TeamAKey;
         var teamAName = cr.TeamAName;
@@ -49,7 +56,7 @@ public static class LiveMatchBroadcaster
             .Where(p => p.IsValid && !p.IsBot && p.ActionTrackingServices != null)
             .Select(p =>
             {
-                var steamId = p.SteamID;
+                var steamId = Helpers.GetSteamId(p);
                 var roster = cr.RosterOf(steamId);
                 var teamStr = isCr ? (roster ?? "Spectator") : p.TeamNum.ToString(); // In non-CR, team string doesn't matter much or can be just T/CT
                 var elo = eloCache.TryGetValue(steamId, out var e) ? e : 1000;
@@ -58,10 +65,10 @@ public static class LiveMatchBroadcaster
                     SteamId = steamId.ToString(),
                     Name = p.PlayerName,
                     Team = teamStr,
-                    Kills = p.ActionTrackingServices!.MatchStats.Kills,
-                    Deaths = p.ActionTrackingServices.MatchStats.Deaths,
-                    Assists = p.ActionTrackingServices.MatchStats.Assists,
-                    Damage = p.ActionTrackingServices.MatchStats.Damage,
+                    Kills = p.ActionTrackingServices?.MatchStats?.Kills ?? 0,
+                    Deaths = p.ActionTrackingServices?.MatchStats?.Deaths ?? 0,
+                    Assists = p.ActionTrackingServices?.MatchStats?.Assists ?? 0,
+                    Damage = p.ActionTrackingServices?.MatchStats?.Damage ?? 0,
                     Elo = elo
                 };
             })
@@ -160,6 +167,12 @@ public static class LiveMatchBroadcaster
                 _isBroadcasting = false;
             }
         });
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"[LiveMatchBroadcaster] Sync Exception: {e}");
+            _isBroadcasting = false;
+        }
     }
 
     public static async Task ClearAsync()

@@ -168,8 +168,7 @@ public partial class RankingsModule : IGardenModule
         _plugin.AddCommand("css_season_new", "Starts a new season. Usage: css_season_new [name]", OnNewSeasonCommand);
         _plugin.AddCommand("css_seasons", "Lists all seasons.", OnSeasonsCommand);
         _plugin.AddCommand("css_rankings_reload_config", "Reloads the rankings config.", OnReloadConfigCommand);
-        _plugin.AddCommand("css_autoscramble", "Toggles auto team scramble every round.", OnAutoScrambleCommand);
-
+        
         RegisterMapCommands();
 
         // R10: single transition point for cvar profiles — whenever the server
@@ -1677,20 +1676,6 @@ public partial class RankingsModule : IGardenModule
         commandInfo.ReplyToCommand($"{MessagePrefix}Config reloaded for version {PluginInfo.Version}.");
     }
 
-    public void OnAutoScrambleCommand(CCSPlayerController? player, CommandInfo commandInfo)
-    {
-        if (!HasRootPermission(player, commandInfo))
-        {
-            return;
-        }
-
-        var cfg = Configs.GetConfigData().ModeCvars;
-        cfg.ScrambleTeamsEachRound = !cfg.ScrambleTeamsEachRound;
-        Configs.Save();
-
-        var status = cfg.ScrambleTeamsEachRound ? "enabled" : "disabled";
-        Helpers.PrintToAll($"{MessagePrefix}Auto team scramble every round is now {status}.");
-    }
 
     public void OnDmgCommand(CCSPlayerController? player, CommandInfo commandInfo)
     {

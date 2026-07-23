@@ -34,6 +34,7 @@ public class GameManager
     }
 
     private bool _scrambleNextRound;
+    public bool AutoScrambleEveryRound { get; set; } = false;
 
     public void ScrambleNextRound(CCSPlayerController? admin = null)
     {
@@ -288,12 +289,11 @@ public class GameManager
                 break;
         }
 
-        if (_scrambleNextRound)
+        if (_scrambleNextRound || AutoScrambleEveryRound)
         {
             ScrambleTeams();
         }
-
-        if (_isBalanceEnabled)
+        else if (_isBalanceEnabled)
         {
             BalanceTeams();
         }

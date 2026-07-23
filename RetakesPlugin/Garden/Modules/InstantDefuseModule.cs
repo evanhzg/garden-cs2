@@ -63,7 +63,7 @@ public class InstantDefuseModule : IGardenModule
 
     private void TryInstantDefuse()
     {
-        if (!Enabled || !_plugin.RetakesGameplayActive)
+        if (!Enabled || (!_plugin.RetakesGameplayActive && _host.Modes.CurrentMode != GardenRetakes.Core.GameModes.GameModeKind.Wingman))
         {
             return;
         }

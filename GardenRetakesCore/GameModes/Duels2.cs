@@ -11,11 +11,18 @@ public class NamedDuelArena
 {
     public string Name { get; set; } = "";
     public string? AddedBy { get; set; }
+    
+    // Legacy support (gets migrated to Spawns on load)
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ExecutePosition? EndA { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ExecutePosition? EndB { get; set; }
 
+    public List<ExecutePosition> SpawnsA { get; set; } = [];
+    public List<ExecutePosition> SpawnsB { get; set; } = [];
+
     [JsonIgnore]
-    public bool IsComplete => EndA is not null && EndB is not null;
+    public bool IsComplete => (SpawnsA.Count > 0 || EndA is not null) && (SpawnsB.Count > 0 || EndB is not null);
 }
 
 public class DuelMapData
@@ -67,8 +74,25 @@ public class DuelArenaStore
 
     public string Serialize() => JsonSerializer.Serialize(_data, JsonOptions);
 
-    public void Load(string json) =>
+    public void Load(string json)
+    {
         _data = JsonSerializer.Deserialize<DuelMapData>(json, JsonOptions) ?? new DuelMapData();
+        
+        // Migrate legacy EndA/EndB
+        foreach (var arena in _data.Arenas)
+        {
+            if (arena.EndA is not null)
+            {
+                if (arena.SpawnsA.Count == 0) arena.SpawnsA.Add(arena.EndA);
+                arena.EndA = null; // Don't save it anymore
+            }
+            if (arena.EndB is not null)
+            {
+                if (arena.SpawnsB.Count == 0) arena.SpawnsB.Add(arena.EndB);
+                arena.EndB = null;
+            }
+        }
+    }
 
     public void Clear() => _data = new DuelMapData();
 }
@@ -137,16 +161,13 @@ public class DuelManager
             return open;
         }
 
-        // Room for a new lane?
-        if (_lanes.Count < MaxLanes)
+        // Room for a new lane, and an opponent waiting?
+        if (_lanes.Count < MaxLanes && _queue.Count > 0)
         {
             var lane = new DuelLane { Id = _nextLaneId++ };
             lane.FighterA = id;
-            if (_queue.Count > 0)
-            {
-                lane.FighterB = _queue[0];
-                _queue.RemoveAt(0);
-            }
+            lane.FighterB = _queue[0];
+            _queue.RemoveAt(0);
 
             _lanes.Add(lane);
             return lane;

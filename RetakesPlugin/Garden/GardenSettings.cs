@@ -47,6 +47,12 @@ public class GardenSettings
 
     [JsonPropertyName("ServerControl")]
     public ServerControlSettings ServerControl { get; set; } = new();
+
+    [JsonPropertyName("Wingman")]
+    public WingmanSettings Wingman { get; set; } = new();
+
+    [JsonPropertyName("MapCycle")]
+    public MapCycleSettings MapCycle { get; set; } = new();
 }
 
 /// <summary>
@@ -257,3 +263,50 @@ public class DuelsSettings
         "mp_restartgame 1",
     ];
 }
+
+public class WingmanSettings
+{
+    [JsonPropertyName("Enabled")]
+    public bool Enabled { get; set; } = true;
+
+    /// <summary>Console commands executed when Wingman starts (round flow is native).</summary>
+    [JsonPropertyName("StartCommands")]
+    public List<string> StartCommands { get; set; } =
+    [
+        "game_type 0",
+        "game_mode 2",
+        "mp_warmup_end",
+        "mp_restartgame 1",
+    ];
+
+    /// <summary>Console commands executed when Wingman stops (back to retakes).</summary>
+    [JsonPropertyName("StopCommands")]
+    public List<string> StopCommands { get; set; } =
+    [
+        "game_type 0",
+        "game_mode 0",
+        "mp_restartgame 1",
+    ];
+}
+
+public class MapCycleSettings
+{
+    [JsonPropertyName("Enabled")]
+    public bool Enabled { get; set; } = true;
+
+    [JsonPropertyName("RtvPercentage")]
+    public double RtvPercentage { get; set; } = 0.5;
+
+    [JsonPropertyName("VoteDurationSeconds")]
+    public int VoteDurationSeconds { get; set; } = 30;
+
+    /// <summary>Map groups for each game mode. Can be workshop maps e.g. ws:12345678</summary>
+    [JsonPropertyName("MapGroups")]
+    public Dictionary<string, List<string>> MapGroups { get; set; } = new()
+    {
+        { "Retakes", ["de_mirage", "de_inferno", "de_dust2", "de_overpass", "de_nuke", "de_vertigo", "de_ancient", "de_anubis"] },
+        { "Wingman", ["de_inferno", "de_overpass", "de_vertigo", "de_nuke", "de_boyard", "de_chalice"] },
+        { "Duels", ["am_aztec", "am_banana", "am_dust2"] }
+    };
+}
+

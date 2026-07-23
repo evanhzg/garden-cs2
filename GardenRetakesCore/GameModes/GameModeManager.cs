@@ -17,6 +17,9 @@ public enum GameModeKind
 
     /// <summary>SpellTakers: LoL-inspired MOBA gamemode (ARAM).</summary>
     SpellTakers,
+
+    /// <summary>Wingman: 2v2 native mode.</summary>
+    Wingman,
 }
 
 public enum SmallServerState
@@ -90,6 +93,9 @@ public class GameModeManager
                 return true;
             case "spelltakers" or "aram" or "st":
                 mode = GameModeKind.SpellTakers;
+                return true;
+            case "wingman" or "wm" or "wing":
+                mode = GameModeKind.Wingman;
                 return true;
             default:
                 mode = GameModeKind.Retakes;

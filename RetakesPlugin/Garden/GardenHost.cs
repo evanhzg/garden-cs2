@@ -50,6 +50,8 @@ public class GardenHost
         _modules.Add(new EditModeModule(plugin, this, admin, duels, executes));
         _modules.Add(new SpotlightModule(plugin, this, admin));
         _modules.Add(new SpellTakersModule(plugin, this));
+        _modules.Add(new WingmanModule(plugin, this));
+        _modules.Add(new MapCycleModule(plugin, this));
         // Added last so its map-start cvar re-apply lands after the rankings
         // ModeCvars pass — the !gmenu setup then stays consistent across maps.
         _modules.Add(new ServerControlModule(plugin, this, admin));
